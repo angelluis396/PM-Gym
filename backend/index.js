@@ -1,45 +1,42 @@
 require("dotenv").config();
-const express = require("express");
-const cors = require("cors");
-const rateLimit = require("express-rate-limit");
-const claudeRoutes = require("./routes/claude");
+const express    = require("express");
+const cors       = require("cors");
+const rateLimit  = require("express-rate-limit");
+const claudeRoutes   = require("./routes/claude");
+const focusedRoutes  = require("./routes/focused");
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 3001;
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
 app.use(express.json());
 
-// Allow requests from your frontend (update FRONTEND_URL in .env for production)
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
-    methods: ["GET", "POST"],
-  })
-);
+app.use(cors({
+  origin:  process.env.FRONTEND_URL || "http://localhost:5173",
+  methods: ["GET", "POST"],
+}));
 
-// Rate limiting — prevents abuse and runaway API costs
-// 30 requests per user per 15 minutes
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 30,
-  message: { error: "Too many requests. Please wait a few minutes and try again." },
+  windowMs:       15 * 60 * 1000,
+  max:            30,
+  message:        { error: "Too many requests. Please wait a few minutes and try again." },
   standardHeaders: true,
-  legacyHeaders: false,
+  legacyHeaders:  false,
 });
 app.use("/api/", limiter);
 
-// ─── Routes ──────────────────────────────────────────────────────────────────
+// ─── Routes ───────────────────────────────────────────────────────────────────
 
 app.use("/api", claudeRoutes);
+app.use("/api", focusedRoutes);
 
-// Health check — useful for deployment platforms (Render, Railway, etc.)
+// Health check
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// 404 fallback
+// 404
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
 });

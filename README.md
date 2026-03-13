@@ -136,7 +136,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 - [x] Full PM plan exercise with AI grading
 - [x] User auth and profiles
-- [ ] Progress dashboard with performance metrics
-- [ ] Focused practice mode (epics, stories, roadmaps individually)
+- [x] Progress dashboard with performance metrics for PM Plan Exercise and Focused Practice.
+- [x] Focused practice mode (epics, stories, roadmaps individually)
 - [ ] Scenario runs — real-world PM situations to respond to
 - [ ] Glossary — definitions and examples of all PM concepts

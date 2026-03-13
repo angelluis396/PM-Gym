@@ -1,21 +1,22 @@
 import { useState, useEffect } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { supabase } from "./lib/supabase";
-import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedRoute    from "./components/ProtectedRoute";
 import { PHASES, EMPTY_FORM } from "./constants/prompts";
 import { generateVision, gradeSubmission } from "./api/claude";
 import { saveSession } from "./api/sessions";
 
-import Login         from "./pages/Login";
-import Callback      from "./pages/Callback";
-import MFASetup      from "./pages/MFASetup";
-import Profile       from "./pages/Profile";
-import Dashboard     from "./pages/Dashboard";
-import SessionDetail from "./pages/SessionDetail";
-import Home          from "./pages/Home";
-import Vision        from "./pages/Vision";
-import Form          from "./pages/Form";
-import Results       from "./pages/Results";
+import Login           from "./pages/Login";
+import Callback        from "./pages/Callback";
+import MFASetup        from "./pages/MFASetup";
+import Profile         from "./pages/Profile";
+import Dashboard       from "./pages/Dashboard";
+import SessionDetail   from "./pages/SessionDetail";
+import FocusedPractice from "./pages/FocusedPractice";
+import Home            from "./pages/Home";
+import Vision          from "./pages/Vision";
+import Form            from "./pages/Form";
+import Results         from "./pages/Results";
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 
@@ -44,16 +45,13 @@ function NavTab({ label, active, onClick }) {
     <button
       onClick={onClick}
       style={{
-        background: "none",
-        border: "none",
-        cursor: "pointer",
-        fontSize: 14,
-        fontWeight: 700,
-        fontFamily: "inherit",
+        background: "none", border: "none", cursor: "pointer",
+        fontSize: 14, fontWeight: 700, fontFamily: "inherit",
         color: active ? "#e2e8f0" : "#64748b",
         padding: "6px 2px",
         borderBottom: active ? "2px solid #6366f1" : "2px solid transparent",
         transition: "color 0.2s, border-color 0.2s",
+        whiteSpace: "nowrap",
       }}
     >
       {label}
@@ -61,30 +59,59 @@ function NavTab({ label, active, onClick }) {
   );
 }
 
-// ─── App views ────────────────────────────────────────────────────────────────
-// "dashboard"     — the dashboard page
-// "session"       — a past session detail
-// "practice"      — the PM plan exercise flow
+// ─── Practice mode toggle ─────────────────────────────────────────────────────
+
+function ModeToggle({ mode, onChange }) {
+  return (
+    <div style={{
+      display: "flex", background: "#0f172a", borderRadius: 10,
+      padding: 4, marginBottom: 36, border: "1px solid #334155",
+      maxWidth: 400, margin: "0 auto 36px",
+    }}>
+      {[
+        { key: "full",    label: "📋 Full PM Plan" },
+        { key: "focused", label: "🎯 Focused Practice" },
+      ].map(({ key, label }) => (
+        <button
+          key={key}
+          onClick={() => onChange(key)}
+          style={{
+            flex: 1, padding: "10px", borderRadius: 8, border: "none",
+            cursor: "pointer", fontWeight: 700, fontSize: 14, fontFamily: "inherit",
+            transition: "all 0.2s",
+            background: mode === key ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "transparent",
+            color: mode === key ? "white" : "#64748b",
+            boxShadow: mode === key ? "0 2px 8px rgba(99,102,241,0.4)" : "none",
+          }}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 // ─── Main app ─────────────────────────────────────────────────────────────────
 
 function PMGymApp() {
   const { user } = useAuth();
 
-  // ── View routing ────────────────────────────────────────────────────────────
-  const [view,           setView]           = useState("dashboard");
-  const [activeSession,  setActiveSession]  = useState(null); // for session detail
+  // "dashboard" | "session" | "practice"
+  const [view,          setView]          = useState("dashboard");
+  // "full" | "focused"
+  const [practiceMode,  setPracticeMode]  = useState("full");
+  const [activeSession, setActiveSession] = useState(null);
 
-  // ── Exercise state ──────────────────────────────────────────────────────────
-  const [phase,    setPhase]    = useState(PHASES.HOME);
-  const [vision,   setVision]   = useState("");
-  const [form,     setForm]     = useState(EMPTY_FORM);
-  const [results,  setResults]  = useState(null);
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState("");
-  const [saving,   setSaving]   = useState(false);
+  // Full PM plan state
+  const [phase,   setPhase]   = useState(PHASES.HOME);
+  const [vision,  setVision]  = useState("");
+  const [form,    setForm]    = useState(EMPTY_FORM);
+  const [results, setResults] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [saving,  setSaving]  = useState(false);
+  const [error,   setError]   = useState("");
 
-  // ── User display ─────────────────────────────────────────────────────────────
+  // User display
   const [username, setUsername] = useState("");
   const avatarUrl = user?.user_metadata?.avatar_url;
 
@@ -96,7 +123,6 @@ function PMGymApp() {
         .select("username")
         .eq("id", user.id)
         .maybeSingle();
-
       setUsername(
         data?.username ||
         user.user_metadata?.full_name?.split(" ")[0] ||
@@ -107,23 +133,20 @@ function PMGymApp() {
     fetchUsername();
   }, [user]);
 
-  // ── Exercise handlers ────────────────────────────────────────────────────────
+  // ── Practice helpers ──────────────────────────────────────────────────────────
 
-  function startPractice() {
+  function startPractice(mode = "full") {
+    setPracticeMode(mode);
     setView("practice");
     setPhase(PHASES.HOME);
-    setVision("");
-    setForm(EMPTY_FORM);
-    setResults(null);
-    setError("");
+    setVision(""); setForm(EMPTY_FORM); setResults(null); setError("");
   }
 
   async function handleGenerateVision() {
     setLoading(true); setError("");
     try {
       const v = await generateVision();
-      setVision(v);
-      setPhase(PHASES.VISION);
+      setVision(v); setPhase(PHASES.VISION);
     } catch (e) {
       setError(e.message || "Failed to generate vision. Please try again.");
     }
@@ -140,37 +163,25 @@ function PMGymApp() {
     setPhase(PHASES.GRADING); setError("");
     try {
       const data = await gradeSubmission(vision, form);
-      setResults(data);
-
-      // Save to Supabase
       setSaving(true);
       await saveSession(user.id, vision, form, data);
       setSaving(false);
-
-      setPhase(PHASES.RESULTS);
+      setResults(data); setPhase(PHASES.RESULTS);
     } catch (e) {
       setError(e.message || "Grading failed. Please try again.");
-      setPhase(PHASES.FORM);
-      setSaving(false);
+      setPhase(PHASES.FORM); setSaving(false);
     }
   }
 
   function handleReset() {
-    setPhase(PHASES.HOME);
-    setVision("");
-    setForm(EMPTY_FORM);
-    setResults(null);
-    setError("");
+    setPhase(PHASES.HOME); setVision(""); setForm(EMPTY_FORM); setResults(null); setError("");
   }
-
-  // ── Session detail ───────────────────────────────────────────────────────────
 
   function handleViewSession(session) {
-    setActiveSession(session);
-    setView("session");
+    setActiveSession(session); setView("session");
   }
 
-  // ─── Render ──────────────────────────────────────────────────────────────────
+  // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <div style={{
@@ -186,30 +197,27 @@ function PMGymApp() {
 
       {/* ── Navbar ── */}
       <div style={{
-        borderBottom: "1px solid #1e293b",
-        padding: "0 24px",
+        borderBottom: "1px solid #1e293b", padding: "0 24px",
         position: "sticky", top: 0, zIndex: 10,
-        background: "rgba(15,23,42,0.95)",
-        backdropFilter: "blur(10px)",
+        background: "rgba(15,23,42,0.95)", backdropFilter: "blur(10px)",
       }}>
         <div style={{
           maxWidth: 720, margin: "0 auto",
           display: "flex", alignItems: "center", justifyContent: "space-between",
           height: 56,
         }}>
-          {/* Logo */}
-          <span style={{
-            fontFamily: "'Playfair Display', serif", fontWeight: 900, fontSize: 20,
-            background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)",
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-            cursor: "pointer",
-          }}
+          <span
             onClick={() => setView("dashboard")}
+            style={{
+              fontFamily: "'Playfair Display', serif", fontWeight: 900, fontSize: 20,
+              background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)",
+              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+              cursor: "pointer",
+            }}
           >
             PM Gym
           </span>
 
-          {/* Nav tabs */}
           <div style={{ display: "flex", gap: 24 }}>
             <NavTab
               label="Dashboard"
@@ -219,17 +227,13 @@ function PMGymApp() {
             <NavTab
               label="Practice"
               active={view === "practice"}
-              onClick={startPractice}
+              onClick={() => startPractice("full")}
             />
           </div>
 
-          {/* Avatar */}
           <button
             onClick={() => { window.location.href = "/profile"; }}
-            style={{
-              background: "none", border: "none", cursor: "pointer",
-              display: "flex", alignItems: "center", gap: 10,
-            }}
+            style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}
           >
             <span style={{ fontSize: 14, fontWeight: 600, color: "#94a3b8" }}>{username}</span>
             {avatarUrl ? (
@@ -248,106 +252,91 @@ function PMGymApp() {
         </div>
       </div>
 
-      {/* ── Page content ── */}
+      {/* ── Content ── */}
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 24px" }}>
 
-        {/* ── Dashboard ── */}
+        {/* Dashboard */}
         {view === "dashboard" && (
           <Dashboard
-            onStartSession={startPractice}
+            onStartSession={() => startPractice("full")}
+            onStartFocused={() => startPractice("focused")}
             onViewSession={handleViewSession}
           />
         )}
 
-        {/* ── Session detail ── */}
+        {/* Session detail */}
         {view === "session" && activeSession && (
-          <SessionDetail
-            session={activeSession}
-            onBack={() => setView("dashboard")}
-          />
+          <SessionDetail session={activeSession} onBack={() => setView("dashboard")} />
         )}
 
-        {/* ── Practice flow ── */}
+        {/* Practice */}
         {view === "practice" && (
           <>
-            {/* Header — only on home phase */}
-            {phase === PHASES.HOME && (
-              <div style={{ textAlign: "center", marginBottom: 48 }}>
-                <div style={{ fontSize: 13, letterSpacing: "0.25em", textTransform: "uppercase", color: "#6366f1", fontWeight: 700, marginBottom: 12 }}>
-                  ✦ Full PM Plan Exercise
-                </div>
-                <h1 style={{
-                  fontSize: 36, fontWeight: 900, margin: "0 0 8px",
-                  fontFamily: "'Playfair Display', Georgia, serif",
-                  background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)",
-                  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-                }}>
-                  PM Plan Exercise
-                </h1>
-                <p style={{ color: "#64748b", fontSize: 16, margin: 0 }}>
-                  Get a product vision and build a complete PM plan for grading.
-                </p>
-              </div>
+            <ModeToggle
+              mode={practiceMode}
+              onChange={(m) => { setPracticeMode(m); handleReset(); }}
+            />
+
+            {/* Focused */}
+            {practiceMode === "focused" && (
+              <FocusedPractice onGoToDashboard={() => setView("dashboard")} />
             )}
 
-            {error && (
-              <div style={{
-                background: "#450a0a", border: "1px solid #ef4444",
-                borderRadius: 8, padding: "12px 16px", marginBottom: 20,
-                color: "#fca5a5", fontSize: 14,
-              }}>
-                ⚠️ {error}
-              </div>
-            )}
-
-            {phase === PHASES.HOME && (
-              <Home onStart={handleGenerateVision} loading={loading} />
-            )}
-            {phase === PHASES.VISION && (
-              <Vision
-                vision={vision}
-                onStartPlan={() => setPhase(PHASES.FORM)}
-                onRegenerate={handleGenerateVision}
-                loading={loading}
-              />
-            )}
-            {phase === PHASES.FORM && (
-              <Form
-                vision={vision}
-                form={form}
-                onChange={handleFormChange}
-                onSubmit={handleGrade}
-                onBack={() => setPhase(PHASES.VISION)}
-              />
-            )}
-            {phase === PHASES.GRADING && (
-              <div style={{
-                background: "rgba(30,41,59,0.8)", borderRadius: 16,
-                padding: 60, border: "1px solid #334155", textAlign: "center",
-              }}>
-                <div style={{ fontSize: 48, marginBottom: 20 }}>⏳</div>
-                <h2 style={{ margin: "0 0 8px", fontSize: 22 }}>Grading your PM plan...</h2>
-                <p style={{ color: "#64748b", margin: 0 }}>
-                  {saving ? "Saving your results..." : "AI is reviewing each section carefully."}
-                </p>
-              </div>
-            )}
-            {phase === PHASES.RESULTS && results && (
+            {/* Full PM Plan */}
+            {practiceMode === "full" && (
               <>
-                <Results
-                  vision={vision}
-                  results={results}
-                  onRetry={() => { handleReset(); startPractice(); }}
-                  onEdit={() => setPhase(PHASES.FORM)}
-                />
-                <div style={{ marginTop: 16, textAlign: "center" }}>
-                  <button
-                    onClick={() => setView("dashboard")}
-                    style={{ ...sharedStyles?.btn, background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 14, fontFamily: "inherit" }}
-                  >
-                    View on Dashboard →
-                  </button>
-                </div>
+                {phase === PHASES.HOME && (
+                  <div style={{ textAlign: "center", marginBottom: 48 }}>
+                    <div style={{ fontSize: 13, letterSpacing: "0.25em", textTransform: "uppercase", color: "#6366f1", fontWeight: 700, marginBottom: 12 }}>
+                      ✦ Full PM Plan Exercise
+                    </div>
+                    <h1 style={{
+                      fontSize: 36, fontWeight: 900, margin: "0 0 8px",
+                      fontFamily: "'Playfair Display', Georgia, serif",
+                      background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)",
+                      WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                    }}>
+                      PM Plan Exercise
+                    </h1>
+                    <p style={{ color: "#64748b", fontSize: 16, margin: 0 }}>
+                      Get a product vision and build a complete PM plan for grading.
+                    </p>
+                  </div>
+                )}
+
+                {error && (
+                  <div style={{
+                    background: "#450a0a", border: "1px solid #ef4444",
+                    borderRadius: 8, padding: "12px 16px", marginBottom: 20,
+                    color: "#fca5a5", fontSize: 14,
+                  }}>
+                    ⚠️ {error}
+                  </div>
+                )}
+
+                {phase === PHASES.HOME    && <Home onStart={handleGenerateVision} loading={loading} />}
+                {phase === PHASES.VISION  && <Vision vision={vision} onStartPlan={() => setPhase(PHASES.FORM)} onRegenerate={handleGenerateVision} loading={loading} />}
+                {phase === PHASES.FORM    && <Form vision={vision} form={form} onChange={handleFormChange} onSubmit={handleGrade} onBack={() => setPhase(PHASES.VISION)} />}
+                {phase === PHASES.GRADING && (
+                  <div style={{ background: "rgba(30,41,59,0.8)", borderRadius: 16, padding: 60, border: "1px solid #334155", textAlign: "center" }}>
+                    <div style={{ fontSize: 48, marginBottom: 20 }}>⏳</div>
+                    <h2 style={{ margin: "0 0 8px", fontSize: 22 }}>Grading your PM plan...</h2>
+                    <p style={{ color: "#64748b", margin: 0 }}>{saving ? "Saving your results..." : "AI is reviewing each section carefully."}</p>
+                  </div>
+                )}
+                {phase === PHASES.RESULTS && results && (
+                  <>
+                    <Results vision={vision} results={results} onRetry={handleReset} onEdit={() => setPhase(PHASES.FORM)} />
+                    <div style={{ marginTop: 16, textAlign: "center" }}>
+                      <button
+                        onClick={() => setView("dashboard")}
+                        style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 14, fontFamily: "inherit" }}
+                      >
+                        View on Dashboard →
+                      </button>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </>
@@ -356,16 +345,6 @@ function PMGymApp() {
     </div>
   );
 }
-
-// small sharedStyles reference for inline use above
-const sharedStyles = {
-  btn: {
-    display: "inline-flex", alignItems: "center", gap: 8,
-    padding: "14px 28px", borderRadius: 10, border: "none",
-    cursor: "pointer", fontWeight: 700, fontSize: 15,
-    transition: "all 0.2s", fontFamily: "inherit",
-  },
-};
 
 export default function App() {
   return (
