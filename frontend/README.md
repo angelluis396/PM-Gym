@@ -1,6 +1,6 @@
-# Pocket PM — Frontend
+# PM Gym — Frontend
 
-React + Vite frontend for the Pocket PM app.
+React + Vite frontend for the PM Gym app.
 
 ## File Structure
 
@@ -52,7 +52,7 @@ App runs at http://localhost:5173
 1. Push this folder to a GitHub repo
 2. Go to https://vercel.com → New Project → Import your repo
 3. Add environment variable:
-   - `VITE_API_URL` → your deployed backend URL (e.g. `https://pocket-pm-backend.onrender.com`)
+   - `VITE_API_URL` → your deployed backend URL (e.g. `https://pm-gym-backend.onrender.com`)
 4. Deploy — Vercel auto-detects Vite and handles the build
 
 ---

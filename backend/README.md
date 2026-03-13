@@ -1,4 +1,4 @@
-# Pocket PM — Backend
+# PM Gym — Backend
 
 Express.js backend that proxies requests to the Anthropic Claude API.
 Keeps your API key secret and off the frontend.
@@ -50,7 +50,7 @@ Server runs on http://localhost:3001 by default.
 5. Add environment variables in the Render dashboard:
    - `ANTHROPIC_API_KEY` → your key
    - `FRONTEND_URL` → your deployed frontend URL
-6. Deploy — Render gives you a public URL like `https://pocket-pm-backend.onrender.com`
+6. Deploy — Render gives you a public URL like `https://pm-gym-backend.onrender.com`
 
 Then update your frontend's API base URL to point to that Render URL.
 

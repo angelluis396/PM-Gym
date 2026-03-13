@@ -53,7 +53,7 @@ app.use((err, req, res, next) => {
 // ─── Start ────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {
-  console.log(`✦ Pocket PM backend running on http://localhost:${PORT}`);
+  console.log(`✦ PM Gym backend running on http://localhost:${PORT}`);
   if (!process.env.ANTHROPIC_API_KEY) {
     console.warn("⚠️  WARNING: ANTHROPIC_API_KEY is not set in your .env file");
   }

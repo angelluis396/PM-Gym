@@ -135,7 +135,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 ## Roadmap
 
 - [x] Full PM plan exercise with AI grading
-- [ ] User auth and profiles
+- [x] User auth and profiles
 - [ ] Progress dashboard with performance metrics
 - [ ] Focused practice mode (epics, stories, roadmaps individually)
 - [ ] Scenario runs — real-world PM situations to respond to

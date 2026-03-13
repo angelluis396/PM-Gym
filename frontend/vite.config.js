@@ -5,5 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    // Makes client-side routes like /login and /auth/callback work on refresh
+    historyApiFallback: true,
   },
 });

@@ -1,7 +1,7 @@
 {
-  "name": "pocket-pm-backend",
+  "name": "pm-gym-backend",
   "version": "1.0.0",
-  "description": "Backend API server for Pocket PM app",
+  "description": "Backend API server for PM Gym app",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
