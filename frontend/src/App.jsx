@@ -4,15 +4,18 @@ import { supabase } from "./lib/supabase";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { PHASES, EMPTY_FORM } from "./constants/prompts";
 import { generateVision, gradeSubmission } from "./api/claude";
+import { saveSession } from "./api/sessions";
 
-import Login    from "./pages/Login";
-import Callback from "./pages/Callback";
-import MFASetup from "./pages/MFASetup";
-import Profile  from "./pages/Profile";
-import Home     from "./pages/Home";
-import Vision   from "./pages/Vision";
-import Form     from "./pages/Form";
-import Results  from "./pages/Results";
+import Login         from "./pages/Login";
+import Callback      from "./pages/Callback";
+import MFASetup      from "./pages/MFASetup";
+import Profile       from "./pages/Profile";
+import Dashboard     from "./pages/Dashboard";
+import SessionDetail from "./pages/SessionDetail";
+import Home          from "./pages/Home";
+import Vision        from "./pages/Vision";
+import Form          from "./pages/Form";
+import Results       from "./pages/Results";
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 
@@ -28,51 +31,92 @@ function Router() {
       minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
       background: "#0f172a", color: "#94a3b8", fontFamily: "sans-serif",
     }}>
-      Page not found. <a href="/app" style={{ color: "#6366f1", marginLeft: 8 }}>Go home →</a>
+      Page not found.{" "}
+      <a href="/app" style={{ color: "#6366f1", marginLeft: 8 }}>Go home →</a>
     </div>
   );
 }
+
+// ─── Nav tab ──────────────────────────────────────────────────────────────────
+
+function NavTab({ label, active, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: "none",
+        border: "none",
+        cursor: "pointer",
+        fontSize: 14,
+        fontWeight: 700,
+        fontFamily: "inherit",
+        color: active ? "#e2e8f0" : "#64748b",
+        padding: "6px 2px",
+        borderBottom: active ? "2px solid #6366f1" : "2px solid transparent",
+        transition: "color 0.2s, border-color 0.2s",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+// ─── App views ────────────────────────────────────────────────────────────────
+// "dashboard"     — the dashboard page
+// "session"       — a past session detail
+// "practice"      — the PM plan exercise flow
 
 // ─── Main app ─────────────────────────────────────────────────────────────────
 
 function PMGymApp() {
   const { user } = useAuth();
 
+  // ── View routing ────────────────────────────────────────────────────────────
+  const [view,           setView]           = useState("dashboard");
+  const [activeSession,  setActiveSession]  = useState(null); // for session detail
+
+  // ── Exercise state ──────────────────────────────────────────────────────────
   const [phase,    setPhase]    = useState(PHASES.HOME);
   const [vision,   setVision]   = useState("");
   const [form,     setForm]     = useState(EMPTY_FORM);
   const [results,  setResults]  = useState(null);
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState("");
+  const [saving,   setSaving]   = useState(false);
 
-  // Username — prefer profiles table, fall back to Google name, then email prefix
+  // ── User display ─────────────────────────────────────────────────────────────
   const [username, setUsername] = useState("");
+  const avatarUrl = user?.user_metadata?.avatar_url;
 
   useEffect(() => {
     async function fetchUsername() {
       if (!user) return;
-
       const { data } = await supabase
         .from("profiles")
         .select("username")
         .eq("id", user.id)
         .maybeSingle();
 
-      if (data?.username) {
-        setUsername(data.username);
-      } else {
-        // Fallback: Google first name or email prefix
-        const fallback =
-          user.user_metadata?.full_name?.split(" ")[0] ||
-          user.email?.split("@")[0] ||
-          "PM Athlete";
-        setUsername(fallback);
-      }
+      setUsername(
+        data?.username ||
+        user.user_metadata?.full_name?.split(" ")[0] ||
+        user.email?.split("@")[0] ||
+        "PM Athlete"
+      );
     }
     fetchUsername();
   }, [user]);
 
-  const avatarUrl = user?.user_metadata?.avatar_url;
+  // ── Exercise handlers ────────────────────────────────────────────────────────
+
+  function startPractice() {
+    setView("practice");
+    setPhase(PHASES.HOME);
+    setVision("");
+    setForm(EMPTY_FORM);
+    setResults(null);
+    setError("");
+  }
 
   async function handleGenerateVision() {
     setLoading(true); setError("");
@@ -97,16 +141,36 @@ function PMGymApp() {
     try {
       const data = await gradeSubmission(vision, form);
       setResults(data);
+
+      // Save to Supabase
+      setSaving(true);
+      await saveSession(user.id, vision, form, data);
+      setSaving(false);
+
       setPhase(PHASES.RESULTS);
     } catch (e) {
       setError(e.message || "Grading failed. Please try again.");
       setPhase(PHASES.FORM);
+      setSaving(false);
     }
   }
 
   function handleReset() {
-    setPhase(PHASES.HOME); setVision(""); setForm(EMPTY_FORM); setResults(null); setError("");
+    setPhase(PHASES.HOME);
+    setVision("");
+    setForm(EMPTY_FORM);
+    setResults(null);
+    setError("");
   }
+
+  // ── Session detail ───────────────────────────────────────────────────────────
+
+  function handleViewSession(session) {
+    setActiveSession(session);
+    setView("session");
+  }
+
+  // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <div style={{
@@ -120,94 +184,188 @@ function PMGymApp() {
         rel="stylesheet"
       />
 
-      {/* Navbar */}
+      {/* ── Navbar ── */}
       <div style={{
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-        padding: "16px 24px", borderBottom: "1px solid #1e293b",
-        maxWidth: 720, margin: "0 auto",
+        borderBottom: "1px solid #1e293b",
+        padding: "0 24px",
+        position: "sticky", top: 0, zIndex: 10,
+        background: "rgba(15,23,42,0.95)",
+        backdropFilter: "blur(10px)",
       }}>
-        <span style={{
-          fontFamily: "'Playfair Display', serif", fontWeight: 900, fontSize: 20,
-          background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)",
-          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+        <div style={{
+          maxWidth: 720, margin: "0 auto",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          height: 56,
         }}>
-          PM Gym
-        </span>
-
-        {/* Avatar + username */}
-        <button
-          onClick={() => { window.location.href = "/profile"; }}
-          style={{
-            background: "none", border: "none", cursor: "pointer",
-            display: "flex", alignItems: "center", gap: 10,
-          }}
-        >
-          <span style={{ fontSize: 14, fontWeight: 600, color: "#94a3b8" }}>
-            {username}
-          </span>
-          {avatarUrl ? (
-            <img src={avatarUrl} alt={username} style={{ width: 32, height: 32, borderRadius: "50%" }} />
-          ) : (
-            <div style={{
-              width: 32, height: 32, borderRadius: "50%",
-              background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 14, fontWeight: 800, color: "white",
-            }}>
-              {username?.[0]?.toUpperCase() || "?"}
-            </div>
-          )}
-        </button>
-      </div>
-
-      {/* Content */}
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 24px" }}>
-        <div style={{ textAlign: "center", marginBottom: 48 }}>
-          <div style={{ fontSize: 13, letterSpacing: "0.25em", textTransform: "uppercase", color: "#6366f1", fontWeight: 700, marginBottom: 12 }}>
-            ✦ AI-Powered Practice Tool
-          </div>
-          <h1 style={{
-            fontSize: 42, fontWeight: 900, margin: "0 0 8px",
-            fontFamily: "'Playfair Display', Georgia, serif",
+          {/* Logo */}
+          <span style={{
+            fontFamily: "'Playfair Display', serif", fontWeight: 900, fontSize: 20,
             background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)",
             WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-          }}>
+            cursor: "pointer",
+          }}
+            onClick={() => setView("dashboard")}
+          >
             PM Gym
-          </h1>
-          <p style={{ color: "#64748b", fontSize: 16, margin: 0 }}>
-            Sharpen your product management skills with AI feedback
-          </p>
+          </span>
+
+          {/* Nav tabs */}
+          <div style={{ display: "flex", gap: 24 }}>
+            <NavTab
+              label="Dashboard"
+              active={view === "dashboard" || view === "session"}
+              onClick={() => setView("dashboard")}
+            />
+            <NavTab
+              label="Practice"
+              active={view === "practice"}
+              onClick={startPractice}
+            />
+          </div>
+
+          {/* Avatar */}
+          <button
+            onClick={() => { window.location.href = "/profile"; }}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 10,
+            }}
+          >
+            <span style={{ fontSize: 14, fontWeight: 600, color: "#94a3b8" }}>{username}</span>
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={username} style={{ width: 32, height: 32, borderRadius: "50%" }} />
+            ) : (
+              <div style={{
+                width: 32, height: 32, borderRadius: "50%",
+                background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 14, fontWeight: 800, color: "white",
+              }}>
+                {username?.[0]?.toUpperCase() || "?"}
+              </div>
+            )}
+          </button>
         </div>
+      </div>
 
-        {error && (
-          <div style={{
-            background: "#450a0a", border: "1px solid #ef4444",
-            borderRadius: 8, padding: "12px 16px", marginBottom: 20,
-            color: "#fca5a5", fontSize: 14,
-          }}>
-            ⚠️ {error}
-          </div>
+      {/* ── Page content ── */}
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 24px" }}>
+
+        {/* ── Dashboard ── */}
+        {view === "dashboard" && (
+          <Dashboard
+            onStartSession={startPractice}
+            onViewSession={handleViewSession}
+          />
         )}
 
-        {phase === PHASES.HOME    && <Home onStart={handleGenerateVision} loading={loading} />}
-        {phase === PHASES.VISION  && <Vision vision={vision} onStartPlan={() => setPhase(PHASES.FORM)} onRegenerate={handleGenerateVision} loading={loading} />}
-        {phase === PHASES.FORM    && <Form vision={vision} form={form} onChange={handleFormChange} onSubmit={handleGrade} onBack={() => setPhase(PHASES.VISION)} />}
-        {phase === PHASES.GRADING && (
-          <div style={{ background: "rgba(30,41,59,0.8)", borderRadius: 16, padding: 60, border: "1px solid #334155", textAlign: "center" }}>
-            <div style={{ fontSize: 48, marginBottom: 20 }}>⏳</div>
-            <h2 style={{ margin: "0 0 8px", fontSize: 22 }}>Grading your PM plan...</h2>
-            <p style={{ color: "#64748b", margin: 0 }}>AI is reviewing each section carefully.</p>
-          </div>
+        {/* ── Session detail ── */}
+        {view === "session" && activeSession && (
+          <SessionDetail
+            session={activeSession}
+            onBack={() => setView("dashboard")}
+          />
         )}
-        {phase === PHASES.RESULTS && results && (
-          <Results vision={vision} results={results} onRetry={handleReset} onEdit={() => setPhase(PHASES.FORM)} />
+
+        {/* ── Practice flow ── */}
+        {view === "practice" && (
+          <>
+            {/* Header — only on home phase */}
+            {phase === PHASES.HOME && (
+              <div style={{ textAlign: "center", marginBottom: 48 }}>
+                <div style={{ fontSize: 13, letterSpacing: "0.25em", textTransform: "uppercase", color: "#6366f1", fontWeight: 700, marginBottom: 12 }}>
+                  ✦ Full PM Plan Exercise
+                </div>
+                <h1 style={{
+                  fontSize: 36, fontWeight: 900, margin: "0 0 8px",
+                  fontFamily: "'Playfair Display', Georgia, serif",
+                  background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)",
+                  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                }}>
+                  PM Plan Exercise
+                </h1>
+                <p style={{ color: "#64748b", fontSize: 16, margin: 0 }}>
+                  Get a product vision and build a complete PM plan for grading.
+                </p>
+              </div>
+            )}
+
+            {error && (
+              <div style={{
+                background: "#450a0a", border: "1px solid #ef4444",
+                borderRadius: 8, padding: "12px 16px", marginBottom: 20,
+                color: "#fca5a5", fontSize: 14,
+              }}>
+                ⚠️ {error}
+              </div>
+            )}
+
+            {phase === PHASES.HOME && (
+              <Home onStart={handleGenerateVision} loading={loading} />
+            )}
+            {phase === PHASES.VISION && (
+              <Vision
+                vision={vision}
+                onStartPlan={() => setPhase(PHASES.FORM)}
+                onRegenerate={handleGenerateVision}
+                loading={loading}
+              />
+            )}
+            {phase === PHASES.FORM && (
+              <Form
+                vision={vision}
+                form={form}
+                onChange={handleFormChange}
+                onSubmit={handleGrade}
+                onBack={() => setPhase(PHASES.VISION)}
+              />
+            )}
+            {phase === PHASES.GRADING && (
+              <div style={{
+                background: "rgba(30,41,59,0.8)", borderRadius: 16,
+                padding: 60, border: "1px solid #334155", textAlign: "center",
+              }}>
+                <div style={{ fontSize: 48, marginBottom: 20 }}>⏳</div>
+                <h2 style={{ margin: "0 0 8px", fontSize: 22 }}>Grading your PM plan...</h2>
+                <p style={{ color: "#64748b", margin: 0 }}>
+                  {saving ? "Saving your results..." : "AI is reviewing each section carefully."}
+                </p>
+              </div>
+            )}
+            {phase === PHASES.RESULTS && results && (
+              <>
+                <Results
+                  vision={vision}
+                  results={results}
+                  onRetry={() => { handleReset(); startPractice(); }}
+                  onEdit={() => setPhase(PHASES.FORM)}
+                />
+                <div style={{ marginTop: 16, textAlign: "center" }}>
+                  <button
+                    onClick={() => setView("dashboard")}
+                    style={{ ...sharedStyles?.btn, background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 14, fontFamily: "inherit" }}
+                  >
+                    View on Dashboard →
+                  </button>
+                </div>
+              </>
+            )}
+          </>
         )}
       </div>
     </div>
   );
 }
 
-// ─── Root ─────────────────────────────────────────────────────────────────────
+// small sharedStyles reference for inline use above
+const sharedStyles = {
+  btn: {
+    display: "inline-flex", alignItems: "center", gap: 8,
+    padding: "14px 28px", borderRadius: 10, border: "none",
+    cursor: "pointer", fontWeight: 700, fontSize: 15,
+    transition: "all 0.2s", fontFamily: "inherit",
+  },
+};
 
 export default function App() {
   return (
