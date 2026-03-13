@@ -1,9 +1,10 @@
 require("dotenv").config();
-const express    = require("express");
-const cors       = require("cors");
-const rateLimit  = require("express-rate-limit");
+const express        = require("express");
+const cors           = require("cors");
+const rateLimit      = require("express-rate-limit");
 const claudeRoutes   = require("./routes/claude");
 const focusedRoutes  = require("./routes/focused");
+const scenarioRoutes = require("./routes/scenarios");
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -18,11 +19,11 @@ app.use(cors({
 }));
 
 const limiter = rateLimit({
-  windowMs:       15 * 60 * 1000,
-  max:            30,
-  message:        { error: "Too many requests. Please wait a few minutes and try again." },
+  windowMs:        15 * 60 * 1000,
+  max:             30,
+  message:         { error: "Too many requests. Please wait a few minutes and try again." },
   standardHeaders: true,
-  legacyHeaders:  false,
+  legacyHeaders:   false,
 });
 app.use("/api/", limiter);
 
@@ -30,6 +31,7 @@ app.use("/api/", limiter);
 
 app.use("/api", claudeRoutes);
 app.use("/api", focusedRoutes);
+app.use("/api", scenarioRoutes);
 
 // Health check
 app.get("/health", (req, res) => {

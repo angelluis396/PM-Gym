@@ -13,6 +13,8 @@ import Profile         from "./pages/Profile";
 import Dashboard       from "./pages/Dashboard";
 import SessionDetail   from "./pages/SessionDetail";
 import FocusedPractice from "./pages/FocusedPractice";
+import ScenarioRuns    from "./pages/ScenarioRuns";
+import Glossary        from "./pages/Glossary";
 import Home            from "./pages/Home";
 import Vision          from "./pages/Vision";
 import Form            from "./pages/Form";
@@ -62,22 +64,23 @@ function NavTab({ label, active, onClick }) {
 // ─── Practice mode toggle ─────────────────────────────────────────────────────
 
 function ModeToggle({ mode, onChange }) {
+  const modes = [
+    { key: "full",     label: "📋 Full PM Plan" },
+    { key: "focused",  label: "🎯 Focused" },
+    { key: "scenario", label: "⚡ Scenarios" },
+  ];
   return (
     <div style={{
       display: "flex", background: "#0f172a", borderRadius: 10,
       padding: 4, marginBottom: 36, border: "1px solid #334155",
-      maxWidth: 400, margin: "0 auto 36px",
     }}>
-      {[
-        { key: "full",    label: "📋 Full PM Plan" },
-        { key: "focused", label: "🎯 Focused Practice" },
-      ].map(({ key, label }) => (
+      {modes.map(({ key, label }) => (
         <button
           key={key}
           onClick={() => onChange(key)}
           style={{
             flex: 1, padding: "10px", borderRadius: 8, border: "none",
-            cursor: "pointer", fontWeight: 700, fontSize: 14, fontFamily: "inherit",
+            cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "inherit",
             transition: "all 0.2s",
             background: mode === key ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "transparent",
             color: mode === key ? "white" : "#64748b",
@@ -96,13 +99,11 @@ function ModeToggle({ mode, onChange }) {
 function PMGymApp() {
   const { user } = useAuth();
 
-  // "dashboard" | "session" | "practice"
+  // "dashboard" | "session" | "practice" | "glossary"
   const [view,          setView]          = useState("dashboard");
-  // "full" | "focused"
   const [practiceMode,  setPracticeMode]  = useState("full");
   const [activeSession, setActiveSession] = useState(null);
 
-  // Full PM plan state
   const [phase,   setPhase]   = useState(PHASES.HOME);
   const [vision,  setVision]  = useState("");
   const [form,    setForm]    = useState(EMPTY_FORM);
@@ -111,7 +112,6 @@ function PMGymApp() {
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState("");
 
-  // User display
   const [username, setUsername] = useState("");
   const avatarUrl = user?.user_metadata?.avatar_url;
 
@@ -132,8 +132,6 @@ function PMGymApp() {
     }
     fetchUsername();
   }, [user]);
-
-  // ── Practice helpers ──────────────────────────────────────────────────────────
 
   function startPractice(mode = "full") {
     setPracticeMode(mode);
@@ -181,8 +179,6 @@ function PMGymApp() {
     setActiveSession(session); setView("session");
   }
 
-  // ─── Render ───────────────────────────────────────────────────────────────────
-
   return (
     <div style={{
       minHeight: "100vh",
@@ -229,6 +225,11 @@ function PMGymApp() {
               active={view === "practice"}
               onClick={() => startPractice("full")}
             />
+            <NavTab
+              label="Glossary"
+              active={view === "glossary"}
+              onClick={() => setView("glossary")}
+            />
           </div>
 
           <button
@@ -255,21 +256,21 @@ function PMGymApp() {
       {/* ── Content ── */}
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 24px" }}>
 
-        {/* Dashboard */}
         {view === "dashboard" && (
           <Dashboard
             onStartSession={() => startPractice("full")}
             onStartFocused={() => startPractice("focused")}
+            onStartScenario={() => startPractice("scenario")}
             onViewSession={handleViewSession}
           />
         )}
 
-        {/* Session detail */}
         {view === "session" && activeSession && (
           <SessionDetail session={activeSession} onBack={() => setView("dashboard")} />
         )}
 
-        {/* Practice */}
+        {view === "glossary" && <Glossary />}
+
         {view === "practice" && (
           <>
             <ModeToggle
@@ -277,12 +278,14 @@ function PMGymApp() {
               onChange={(m) => { setPracticeMode(m); handleReset(); }}
             />
 
-            {/* Focused */}
+            {practiceMode === "scenario" && (
+              <ScenarioRuns onGoToDashboard={() => setView("dashboard")} />
+            )}
+
             {practiceMode === "focused" && (
               <FocusedPractice onGoToDashboard={() => setView("dashboard")} />
             )}
 
-            {/* Full PM Plan */}
             {practiceMode === "full" && (
               <>
                 {phase === PHASES.HOME && (
@@ -305,11 +308,7 @@ function PMGymApp() {
                 )}
 
                 {error && (
-                  <div style={{
-                    background: "#450a0a", border: "1px solid #ef4444",
-                    borderRadius: 8, padding: "12px 16px", marginBottom: 20,
-                    color: "#fca5a5", fontSize: 14,
-                  }}>
+                  <div style={{ background: "#450a0a", border: "1px solid #ef4444", borderRadius: 8, padding: "12px 16px", marginBottom: 20, color: "#fca5a5", fontSize: 14 }}>
                     ⚠️ {error}
                   </div>
                 )}
