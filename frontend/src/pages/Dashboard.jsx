@@ -5,6 +5,8 @@ import { fetchSessions, computeMetrics } from "../api/sessions";
 import { fetchFocusedSessions } from "../api/focusedSessions";
 import { fetchScenarioSessions } from "../api/scenarioSessions";
 import { fetchQuizSessions } from "../api/quizSessions";
+import { fetchStreak } from "../api/streak";
+import StreakCard from "../components/StreakCard";
 import { EXERCISES } from "../constants/focusedExercises";
 import { SCENARIO_CATEGORIES } from "../constants/scenarioCategories";
 import { QUIZ_CATEGORIES } from "../constants/quizLogic";
@@ -132,7 +134,7 @@ function PerformanceSummary({ userId, sessions, focusedSessions, scenarioSession
   const [loading,setLoading]=useState(false);
   const [initialLoading,setInitialLoading]=useState(true);
   const [error,setError]=useState("");
-  const [expanded,setExpanded]=useState(true);
+  const [expanded,setExpanded]=useState(false);
   const totalSessions=sessions.length+focusedSessions.length+scenarioSessions.length;
 
   useEffect(()=>{
@@ -167,7 +169,7 @@ function PerformanceSummary({ userId, sessions, focusedSessions, scenarioSession
     <div style={{...sharedStyles.card,borderLeft:`3px solid ${colors.indigo}`,marginBottom:24}}>
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,marginBottom:summary&&expanded?14:0}}>
         <div style={{flex:1}}>
-          <h3 style={{margin:"0 0 4px",fontSize:16,fontWeight:800}}>✦ AI Performance Summary</h3>
+          <h3 style={{margin:"0 0 4px",fontSize:16,fontWeight:800}}>✦ Performance Summary</h3>
           <p style={{margin:0,fontSize:12,color:colors.textMuted}}>{summary?dueForRefresh?`Ready for a fresh analysis.`:`Based on ${sessionsAtGen} sessions.`:`${SESSIONS_PER_SUMMARY-totalSessions} more sessions to unlock.`}</p>
         </div>
         <div style={{display:"flex",gap:8,flexShrink:0,alignItems:"center"}}>
@@ -304,6 +306,7 @@ export default function Dashboard({ onStartSession, onStartFocused, onStartScena
   const [focusedSessions,setFocusedSessions]=useState([]);
   const [scenarioSessions,setScenarioSessions]=useState([]);
   const [quizSessions,setQuizSessions]=useState([]);
+  const [streak,setStreak]=useState({current_streak:0,longest_streak:0,last_activity_date:null});
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
   const [focusedDetail,setFocusedDetail]=useState(null);
@@ -314,8 +317,8 @@ export default function Dashboard({ onStartSession, onStartFocused, onStartScena
     async function load(){
       if(!user)return;
       try{
-        const [full,focused,scenario,quiz]=await Promise.all([fetchSessions(user.id),fetchFocusedSessions(user.id),fetchScenarioSessions(user.id),fetchQuizSessions(user.id)]);
-        setSessions(full);setFocusedSessions(focused);setScenarioSessions(scenario);setQuizSessions(quiz);
+        const [full,focused,scenario,quiz,streakData]=await Promise.all([fetchSessions(user.id),fetchFocusedSessions(user.id),fetchScenarioSessions(user.id),fetchQuizSessions(user.id),fetchStreak(user.id)]);
+        setSessions(full);setFocusedSessions(focused);setScenarioSessions(scenario);setQuizSessions(quiz);setStreak(streakData);
       }catch(e){setError("Failed to load sessions. Please refresh.");}
       setLoading(false);
     }
@@ -335,10 +338,12 @@ export default function Dashboard({ onStartSession, onStartFocused, onStartScena
       {scenarioDetail&&<ScenarioSessionDetail session={scenarioDetail} onClose={()=>setScenarioDetail(null)}/>}
       {quizDetail&&<QuizDetail session={quizDetail} onClose={()=>setQuizDetail(null)}/>}
 
-      <div style={{marginBottom:isMobile?20:32}}>
+      <div style={{marginBottom:isMobile?16:20}}>
         <h2 style={{margin:"0 0 4px",fontSize:isMobile?24:28,fontWeight:900,fontFamily:"'Playfair Display',serif",background:"linear-gradient(135deg, #e2e8f0, #a5b4fc)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Your Progress</h2>
         <p style={{color:colors.textMuted,margin:0,fontSize:14}}>Track how your PM skills are developing over time.</p>
       </div>
+
+      <StreakCard streak={streak} isMobile={isMobile} />
 
       {!hasAny&&(
         <div style={{...sharedStyles.card,textAlign:"center",padding:isMobile?"40px 20px":"60px 32px"}}>
@@ -361,9 +366,8 @@ export default function Dashboard({ onStartSession, onStartFocused, onStartScena
           {hasFullSessions&&(
             <>
               <div style={{display:"flex",gap:isMobile?10:16,marginBottom:isMobile?20:28,flexWrap:"wrap"}}>
-                <StatCard label="Avg Score" value={metrics.averageScore} sub="full PM plans"/>
-                <StatCard label="Best" value={metrics.personalBest} sub="out of 100"/>
-                <StatCard label="Sessions" value={metrics.totalSessions} sub="completed"/>
+                <StatCard label="Average Score" value={metrics.averageScore} sub="full PM plan sessions"/>
+                <StatCard label="Personal Best" value={metrics.personalBest} sub="out of 100"/>
               </div>
               {Object.keys(metrics.sectionAverages).length>0&&(
                 <div style={{...sharedStyles.card,marginBottom:isMobile?20:28}}>

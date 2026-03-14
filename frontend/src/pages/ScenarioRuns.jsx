@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useWindowWidth } from "../hooks/useWindowWidth";
 import { SCENARIO_CATEGORIES, buildScenarioPrompt, buildScenarioGradingPrompt } from "../constants/scenarioCategories";
 import { generateScenario, gradeScenario, saveScenarioSession } from "../api/scenarioSessions";
+import { updateStreak } from "../api/streak";
 import GradeCircle from "../components/GradeCircle";
 import { sharedStyles, colors } from "../constants/styles";
 
@@ -102,6 +103,7 @@ export default function ScenarioRuns({ onGoToDashboard }) {
     try {
       const data = await gradeScenario(buildScenarioGradingPrompt(category, scenario, challenge, answer));
       await saveScenarioSession(user.id, category.key, scenario, challenge, answer, data);
+      await updateStreak(user.id);
       setResults(data); setPhase(PHASES.RESULTS);
     } catch (e) { setError("Grading failed."); setPhase(PHASES.ANSWER); }
   }

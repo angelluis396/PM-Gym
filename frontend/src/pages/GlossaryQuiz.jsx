@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useWindowWidth } from "../hooks/useWindowWidth";
 import { QUIZ_CATEGORIES, buildQuiz, gradeQuiz } from "../constants/quizLogic";
 import { saveQuizSession } from "../api/quizSessions";
+import { updateStreak } from "../api/streak";
 import GradeCircle from "../components/GradeCircle";
 import { sharedStyles, colors } from "../constants/styles";
 
@@ -194,7 +195,10 @@ export default function GlossaryQuiz({ onGoToDashboard }) {
   async function finishQuiz(finalQuestions) {
     const gradeResult = gradeQuiz(finalQuestions);
     setResult(gradeResult); setPhase(PHASES.RESULTS);
-    try { await saveQuizSession(user.id, categoryKey, questionCount, gradeResult.score, gradeResult.letterGrade, gradeResult.graded); } catch (e) {}
+    try {
+      await saveQuizSession(user.id, categoryKey, questionCount, gradeResult.score, gradeResult.letterGrade, gradeResult.graded);
+      await updateStreak(user.id);
+    } catch (e) {}
   }
 
   return (

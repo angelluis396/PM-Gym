@@ -7,6 +7,7 @@ import { useWindowWidth } from "./hooks/useWindowWidth";
 import { PHASES, EMPTY_FORM } from "./constants/prompts";
 import { generateVision, gradeSubmission } from "./api/claude";
 import { saveSession } from "./api/sessions";
+import { updateStreak } from "./api/streak";
 
 import Login           from "./pages/Login";
 import Callback        from "./pages/Callback";
@@ -153,6 +154,7 @@ function PMGymApp() {
       const data = await gradeSubmission(vision, form);
       setSaving(true);
       await saveSession(user.id, vision, form, data);
+      await updateStreak(user.id);
       setSaving(false);
       setResults(data); setPhase(PHASES.RESULTS);
     } catch (e) {
@@ -221,7 +223,7 @@ function PMGymApp() {
           position: "sticky", top: 0, zIndex: 10,
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
-          <span style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900, fontSize: 22, background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+          <span onClick={() => setView("dashboard")} style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900, fontSize: 22, background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", cursor: "pointer" }}>
             PM Gym
           </span>
           {/* Avatar still accessible on mobile top bar */}

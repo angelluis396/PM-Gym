@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useWindowWidth } from "../hooks/useWindowWidth";
 import { EXERCISES, buildContextPrompt, buildFocusedGradingPrompt } from "../constants/focusedExercises";
 import { generateFocusedContext, gradeFocusedAnswer, saveFocusedSession } from "../api/focusedSessions";
+import { updateStreak } from "../api/streak";
 import GradeCircle from "../components/GradeCircle";
 import { sharedStyles, colors } from "../constants/styles";
 
@@ -88,6 +89,7 @@ export default function FocusedPractice({ onGoToDashboard }) {
       const fullContext = vision + (context ? `\n\n${context}` : "");
       const data = await gradeFocusedAnswer(buildFocusedGradingPrompt(exercise, vision, fullContext, answer));
       await saveFocusedSession(user.id, exercise.key, vision, context, answer, data);
+      await updateStreak(user.id);
       setResults(data); setPhase(PHASES.RESULTS);
     } catch (e) { setError("Grading failed."); setPhase(PHASES.EXERCISE); }
   }
