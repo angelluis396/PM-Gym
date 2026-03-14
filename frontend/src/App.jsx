@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { supabase } from "./lib/supabase";
 import ProtectedRoute    from "./components/ProtectedRoute";
+import BottomTabBar      from "./components/BottomTabBar";
+import { useWindowWidth } from "./hooks/useWindowWidth";
 import { PHASES, EMPTY_FORM } from "./constants/prompts";
 import { generateVision, gradeSubmission } from "./api/claude";
 import { saveSession } from "./api/sessions";
@@ -37,11 +39,19 @@ function Router() {
   );
 }
 
-// ─── Nav tab ──────────────────────────────────────────────────────────────────
+// ─── Desktop nav tab ──────────────────────────────────────────────────────────
 
 function NavTab({ label, active, onClick }) {
   return (
-    <button onClick={onClick} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, fontFamily: "inherit", color: active ? "#e2e8f0" : "#64748b", padding: "6px 2px", borderBottom: active ? "2px solid #6366f1" : "2px solid transparent", transition: "color 0.2s, border-color 0.2s", whiteSpace: "nowrap" }}>
+    <button onClick={onClick} style={{
+      background: "none", border: "none", cursor: "pointer",
+      fontSize: 14, fontWeight: 700, fontFamily: "inherit",
+      color: active ? "#e2e8f0" : "#64748b",
+      padding: "6px 2px",
+      borderBottom: active ? "2px solid #6366f1" : "2px solid transparent",
+      transition: "color 0.2s, border-color 0.2s",
+      whiteSpace: "nowrap",
+    }}>
       {label}
     </button>
   );
@@ -49,17 +59,28 @@ function NavTab({ label, active, onClick }) {
 
 // ─── Practice mode toggle ─────────────────────────────────────────────────────
 
-function ModeToggle({ mode, onChange }) {
+function ModeToggle({ mode, onChange, isMobile }) {
   const modes = [
-    { key: "full",     label: "📋 Full PM Plan" },
-    { key: "focused",  label: "🎯 Focused" },
-    { key: "scenario", label: "⚡ Scenarios" },
-    { key: "quiz",     label: "📚 Quiz" },
+    { key: "full",     label: isMobile ? "📋 Full" : "📋 Full PM Plan" },
+    { key: "focused",  label: isMobile ? "🎯 Focus" : "🎯 Focused" },
+    { key: "scenario", label: isMobile ? "⚡ Scenarios" : "⚡ Scenarios" },
+    { key: "quiz",     label: isMobile ? "📚 Quiz" : "📚 Quiz" },
   ];
   return (
-    <div style={{ display: "flex", background: "#0f172a", borderRadius: 10, padding: 4, marginBottom: 36, border: "1px solid #334155" }}>
+    <div style={{
+      display: "flex", background: "#0f172a", borderRadius: 10,
+      padding: 4, marginBottom: 28, border: "1px solid #334155",
+    }}>
       {modes.map(({ key, label }) => (
-        <button key={key} onClick={() => onChange(key)} style={{ flex: 1, padding: "10px 8px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 12, fontFamily: "inherit", transition: "all 0.2s", background: mode === key ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "transparent", color: mode === key ? "white" : "#64748b", boxShadow: mode === key ? "0 2px 8px rgba(99,102,241,0.4)" : "none" }}>
+        <button key={key} onClick={() => onChange(key)} style={{
+          flex: 1, padding: isMobile ? "8px 4px" : "10px 8px",
+          borderRadius: 8, border: "none", cursor: "pointer",
+          fontWeight: 700, fontSize: isMobile ? 11 : 12,
+          fontFamily: "inherit", transition: "all 0.2s",
+          background: mode === key ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "transparent",
+          color: mode === key ? "white" : "#64748b",
+          boxShadow: mode === key ? "0 2px 8px rgba(99,102,241,0.4)" : "none",
+        }}>
           {label}
         </button>
       ))}
@@ -71,6 +92,8 @@ function ModeToggle({ mode, onChange }) {
 
 function PMGymApp() {
   const { user } = useAuth();
+  const width    = useWindowWidth();
+  const isMobile = width < 768;
 
   const [view,          setView]          = useState("dashboard");
   const [practiceMode,  setPracticeMode]  = useState("full");
@@ -103,20 +126,28 @@ function PMGymApp() {
     setVision(""); setForm(EMPTY_FORM); setResults(null); setError("");
   }
 
+  // Handle bottom tab navigation
+  function handleTabNavigate(tab) {
+    if (tab === "profile") { window.location.href = "/profile"; return; }
+    if (tab === "glossary") { setView("glossary"); return; }
+    if (tab === "practice") { startPractice("full"); return; }
+    if (tab === "dashboard") { setView("dashboard"); return; }
+  }
+
   async function handleGenerateVision() {
     setLoading(true); setError("");
     try {
       const v = await generateVision();
       setVision(v); setPhase(PHASES.VISION);
-    } catch (e) { setError(e.message || "Failed to generate vision. Please try again."); }
+    } catch (e) { setError(e.message || "Failed to generate vision."); }
     setLoading(false);
   }
 
-  function handleFormChange(key, value) { setForm((prev) => ({ ...prev, [key]: value })); }
+  function handleFormChange(key, value) { setForm((p) => ({ ...p, [key]: value })); }
 
   async function handleGrade() {
     const filled = Object.values(form).filter((v) => v.trim().length > 0).length;
-    if (filled < 4) { setError("Please fill in at least 4 sections before submitting."); return; }
+    if (filled < 4) { setError("Please fill in at least 4 sections."); return; }
     setPhase(PHASES.GRADING); setError("");
     try {
       const data = await gradeSubmission(vision, form);
@@ -124,42 +155,88 @@ function PMGymApp() {
       await saveSession(user.id, vision, form, data);
       setSaving(false);
       setResults(data); setPhase(PHASES.RESULTS);
-    } catch (e) { setError(e.message || "Grading failed. Please try again."); setPhase(PHASES.FORM); setSaving(false); }
+    } catch (e) {
+      setError(e.message || "Grading failed. Please try again.");
+      setPhase(PHASES.FORM); setSaving(false);
+    }
   }
 
   function handleReset() { setPhase(PHASES.HOME); setVision(""); setForm(EMPTY_FORM); setResults(null); setError(""); }
   function handleViewSession(session) { setActiveSession(session); setView("session"); }
 
+  // Active tab for bottom bar
+  const activeTab = view === "profile" ? "profile"
+    : view === "glossary" ? "glossary"
+    : view === "practice" ? "practice"
+    : "dashboard";
+
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)", fontFamily: "'Inter', 'Segoe UI', sans-serif", color: "#e2e8f0" }}>
+    <div style={{
+      minHeight: "100vh",
+      background: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)",
+      fontFamily: "'Inter', 'Segoe UI', sans-serif",
+      color: "#e2e8f0",
+      // Push content up above bottom tab bar on mobile
+      paddingBottom: isMobile ? 72 : 0,
+    }}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
 
-      {/* Navbar */}
-      <div style={{ borderBottom: "1px solid #1e293b", padding: "0 24px", position: "sticky", top: 0, zIndex: 10, background: "rgba(15,23,42,0.95)", backdropFilter: "blur(10px)" }}>
-        <div style={{ maxWidth: 720, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 56 }}>
-          <span onClick={() => setView("dashboard")} style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900, fontSize: 20, background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", cursor: "pointer" }}>
+      {/* ── Desktop top navbar ── */}
+      {!isMobile && (
+        <div style={{
+          borderBottom: "1px solid #1e293b", padding: "0 24px",
+          position: "sticky", top: 0, zIndex: 10,
+          background: "rgba(15,23,42,0.95)", backdropFilter: "blur(10px)",
+        }}>
+          <div style={{ maxWidth: 720, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 56 }}>
+            <span onClick={() => setView("dashboard")} style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900, fontSize: 20, background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", cursor: "pointer" }}>
+              PM Gym
+            </span>
+            <div style={{ display: "flex", gap: 24 }}>
+              <NavTab label="Dashboard" active={view === "dashboard" || view === "session"} onClick={() => setView("dashboard")} />
+              <NavTab label="Practice"  active={view === "practice"}  onClick={() => startPractice("full")} />
+              <NavTab label="Glossary"  active={view === "glossary"}  onClick={() => setView("glossary")} />
+            </div>
+            <button onClick={() => { window.location.href = "/profile"; }} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: "#94a3b8" }}>{username}</span>
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={username} style={{ width: 32, height: 32, borderRadius: "50%" }} />
+              ) : (
+                <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "white" }}>
+                  {username?.[0]?.toUpperCase() || "?"}
+                </div>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Mobile top bar (logo only) ── */}
+      {isMobile && (
+        <div style={{
+          padding: "12px 20px",
+          borderBottom: "1px solid #1e293b",
+          background: "rgba(15,23,42,0.95)",
+          backdropFilter: "blur(10px)",
+          position: "sticky", top: 0, zIndex: 10,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <span style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900, fontSize: 22, background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
             PM Gym
           </span>
-          <div style={{ display: "flex", gap: 24 }}>
-            <NavTab label="Dashboard" active={view === "dashboard" || view === "session"} onClick={() => setView("dashboard")} />
-            <NavTab label="Practice"  active={view === "practice"}  onClick={() => startPractice("full")} />
-            <NavTab label="Glossary"  active={view === "glossary"}  onClick={() => setView("glossary")} />
-          </div>
-          <button onClick={() => { window.location.href = "/profile"; }} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "#94a3b8" }}>{username}</span>
-            {avatarUrl ? (
-              <img src={avatarUrl} alt={username} style={{ width: 32, height: 32, borderRadius: "50%" }} />
-            ) : (
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "white" }}>
-                {username?.[0]?.toUpperCase() || "?"}
-              </div>
-            )}
-          </button>
+          {/* Avatar still accessible on mobile top bar */}
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={username} style={{ width: 30, height: 30, borderRadius: "50%", cursor: "pointer" }} onClick={() => window.location.href = "/profile"} />
+          ) : (
+            <div onClick={() => window.location.href = "/profile"} style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "white", cursor: "pointer" }}>
+              {username?.[0]?.toUpperCase() || "?"}
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
-      {/* Content */}
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 24px" }}>
+      {/* ── Content ── */}
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: isMobile ? "24px 16px" : "40px 24px" }}>
 
         {view === "dashboard" && (
           <Dashboard
@@ -171,12 +248,15 @@ function PMGymApp() {
           />
         )}
 
-        {view === "session"  && activeSession && <SessionDetail session={activeSession} onBack={() => setView("dashboard")} />}
+        {view === "session" && activeSession && (
+          <SessionDetail session={activeSession} onBack={() => setView("dashboard")} />
+        )}
+
         {view === "glossary" && <Glossary />}
 
         {view === "practice" && (
           <>
-            <ModeToggle mode={practiceMode} onChange={(m) => { setPracticeMode(m); handleReset(); }} />
+            <ModeToggle mode={practiceMode} onChange={(m) => { setPracticeMode(m); handleReset(); }} isMobile={isMobile} />
 
             {practiceMode === "quiz"     && <GlossaryQuiz    onGoToDashboard={() => setView("dashboard")} />}
             {practiceMode === "scenario" && <ScenarioRuns    onGoToDashboard={() => setView("dashboard")} />}
@@ -185,10 +265,12 @@ function PMGymApp() {
             {practiceMode === "full" && (
               <>
                 {phase === PHASES.HOME && (
-                  <div style={{ textAlign: "center", marginBottom: 48 }}>
-                    <div style={{ fontSize: 13, letterSpacing: "0.25em", textTransform: "uppercase", color: "#6366f1", fontWeight: 700, marginBottom: 12 }}>✦ Full PM Plan Exercise</div>
-                    <h1 style={{ fontSize: 36, fontWeight: 900, margin: "0 0 8px", fontFamily: "'Playfair Display', Georgia, serif", background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>PM Plan Exercise</h1>
-                    <p style={{ color: "#64748b", fontSize: 16, margin: 0 }}>Get a product vision and build a complete PM plan for grading.</p>
+                  <div style={{ textAlign: "center", marginBottom: isMobile ? 28 : 48 }}>
+                    <div style={{ fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", color: "#6366f1", fontWeight: 700, marginBottom: 10 }}>✦ Full PM Plan Exercise</div>
+                    <h1 style={{ fontSize: isMobile ? 28 : 36, fontWeight: 900, margin: "0 0 8px", fontFamily: "'Playfair Display', Georgia, serif", background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                      PM Plan Exercise
+                    </h1>
+                    <p style={{ color: "#64748b", fontSize: 15, margin: 0 }}>Get a product vision and build a complete PM plan for grading.</p>
                   </div>
                 )}
                 {error && <div style={{ background: "#450a0a", border: "1px solid #ef4444", borderRadius: 8, padding: "12px 16px", marginBottom: 20, color: "#fca5a5", fontSize: 14 }}>⚠️ {error}</div>}
@@ -196,9 +278,9 @@ function PMGymApp() {
                 {phase === PHASES.VISION  && <Vision vision={vision} onStartPlan={() => setPhase(PHASES.FORM)} onRegenerate={handleGenerateVision} loading={loading} />}
                 {phase === PHASES.FORM    && <Form vision={vision} form={form} onChange={handleFormChange} onSubmit={handleGrade} onBack={() => setPhase(PHASES.VISION)} />}
                 {phase === PHASES.GRADING && (
-                  <div style={{ background: "rgba(30,41,59,0.8)", borderRadius: 16, padding: 60, border: "1px solid #334155", textAlign: "center" }}>
-                    <div style={{ fontSize: 48, marginBottom: 20 }}>⏳</div>
-                    <h2 style={{ margin: "0 0 8px", fontSize: 22 }}>Grading your PM plan...</h2>
+                  <div style={{ background: "rgba(30,41,59,0.8)", borderRadius: 16, padding: isMobile ? 40 : 60, border: "1px solid #334155", textAlign: "center" }}>
+                    <div style={{ fontSize: 40, marginBottom: 16 }}>⏳</div>
+                    <h2 style={{ margin: "0 0 8px", fontSize: 20 }}>Grading your PM plan...</h2>
                     <p style={{ color: "#64748b", margin: 0 }}>{saving ? "Saving your results..." : "AI is reviewing each section carefully."}</p>
                   </div>
                 )}
@@ -206,7 +288,9 @@ function PMGymApp() {
                   <>
                     <Results vision={vision} results={results} onRetry={handleReset} onEdit={() => setPhase(PHASES.FORM)} />
                     <div style={{ marginTop: 16, textAlign: "center" }}>
-                      <button onClick={() => setView("dashboard")} style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 14, fontFamily: "inherit" }}>View on Dashboard →</button>
+                      <button onClick={() => setView("dashboard")} style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 14, fontFamily: "inherit" }}>
+                        View on Dashboard →
+                      </button>
                     </div>
                   </>
                 )}
@@ -215,6 +299,11 @@ function PMGymApp() {
           </>
         )}
       </div>
+
+      {/* ── Bottom tab bar (mobile only) ── */}
+      {isMobile && (
+        <BottomTabBar activeView={view} onNavigate={handleTabNavigate} />
+      )}
     </div>
   );
 }
