@@ -136,7 +136,11 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 - [x] Full PM plan exercise with AI grading
 - [x] User auth and profiles
-- [x] Progress dashboard with performance metrics for PM Plan Exercise and Focused Practice.
-- [x] Focused practice mode (epics, stories, roadmaps individually)
-- [ ] Scenario runs — real-world PM situations to respond to
-- [ ] Glossary — definitions and examples of all PM concepts
+- [x] Progress dashboard with performance metrics for PM Plan Exercise and Focused Practice
+- [x] Focused practice mode (epics, stories, roadmaps, etc. individually)
+- [x] Scenario runs — real-world PM situations to respond to
+- [x] Glossary — definitions and examples of all PM concepts
+- [x] Glossary Quiz — get quized on all the terms in the PM Glossary
+- [x] Optimize Previous Quiz Stacking on Dashboard — allow quizes to stack for each category and fan out vertically
+- [] Mobile Ready — app works on mobile, tablet, desktop, and laptops
+- [] Fine Tune Grading Rubric — make less stringent
