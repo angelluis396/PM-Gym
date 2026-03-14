@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { supabase } from "../lib/supabase";
 import { fetchSessions, computeMetrics } from "../api/sessions";
 import { fetchFocusedSessions } from "../api/focusedSessions";
 import { fetchScenarioSessions } from "../api/scenarioSessions";
@@ -7,6 +8,8 @@ import { EXERCISES } from "../constants/focusedExercises";
 import { SCENARIO_CATEGORIES } from "../constants/scenarioCategories";
 import GradeCircle from "../components/GradeCircle";
 import { sharedStyles, colors } from "../constants/styles";
+
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -16,6 +19,8 @@ const SECTION_LABELS = {
   roadmap: "Roadmap", releasePlan: "Release Plan",
   themesEpicsStories: "Epics & Stories",
 };
+
+const SESSIONS_PER_SUMMARY = 6; // regenerate every N new sessions
 
 function gradeColor(letter) {
   return letter === "A" ? colors.green : letter === "B" ? colors.blue
@@ -30,6 +35,223 @@ function exerciseLabel(key) { return EXERCISES.find((e) => e.key === key)?.label
 function exerciseEmoji(key) { return EXERCISES.find((e) => e.key === key)?.emoji || "🎯"; }
 function categoryLabel(key) { return SCENARIO_CATEGORIES.find((c) => c.key === key)?.label || key; }
 function categoryEmoji(key) { return SCENARIO_CATEGORIES.find((c) => c.key === key)?.emoji || "⚡"; }
+
+const PREVIEW_COUNT = 3;
+
+// ─── AI Performance Summary ───────────────────────────────────────────────────
+
+function PerformanceSummary({ userId, sessions, focusedSessions, scenarioSessions }) {
+  const [summary,          setSummary]          = useState(null);
+  const [sessionsAtGen,    setSessionsAtGen]     = useState(0);
+  const [loading,          setLoading]           = useState(false);
+  const [initialLoading,   setInitialLoading]    = useState(true);
+  const [error,            setError]             = useState("");
+  const [expanded,         setExpanded]          = useState(true);
+
+  const totalSessions = sessions.length + focusedSessions.length + scenarioSessions.length;
+
+  // ── Load existing summary from Supabase on mount ───────────────────────────
+  useEffect(() => {
+    async function loadSummary() {
+      const { data } = await supabase
+        .from("performance_summaries")
+        .select("summary, sessions_at_generation")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (data) {
+        setSummary(data.summary);
+        setSessionsAtGen(data.sessions_at_generation);
+      }
+      setInitialLoading(false);
+    }
+    if (userId) loadSummary();
+  }, [userId]);
+
+  // How many sessions since the last summary was generated
+  const sessionsSinceLastGen = totalSessions - sessionsAtGen;
+  const dueForRefresh = summary && sessionsSinceLastGen >= SESSIONS_PER_SUMMARY;
+  const canGenerate   = totalSessions >= SESSIONS_PER_SUMMARY;
+
+  // ── Save summary to Supabase ───────────────────────────────────────────────
+  async function saveSummary(newSummary, count) {
+    await supabase.from("performance_summaries").upsert(
+      {
+        user_id:                userId,
+        summary:                newSummary,
+        sessions_at_generation: count,
+        updated_at:             new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    );
+  }
+
+  // ── Generate summary ───────────────────────────────────────────────────────
+  async function generateSummary() {
+    setLoading(true); setError("");
+    try {
+      const metrics = computeMetrics(sessions);
+
+      const payload = {
+        fullPMSessions:   sessions.map((s) => ({ score: s.score, letterGrade: s.letter_grade, sections: s.sections, date: s.created_at })),
+        focusedSessions:  focusedSessions.map((s) => ({ exerciseType: s.exercise_type, score: s.score, letterGrade: s.letter_grade, date: s.created_at })),
+        scenarioSessions: scenarioSessions.map((s) => ({ category: s.category, score: s.score, letterGrade: s.letter_grade, date: s.created_at })),
+        sectionAverages:  metrics.sectionAverages,
+        averageScore:     metrics.averageScore,
+        personalBest:     metrics.personalBest,
+      };
+
+      const res = await fetch(`${API_BASE}/api/performance-summary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payload }),
+      });
+
+      if (!res.ok) throw new Error("Failed to generate summary");
+      const data = await res.json();
+
+      // Persist to Supabase
+      await saveSummary(data, totalSessions);
+
+      setSummary(data);
+      setSessionsAtGen(totalSessions);
+      setExpanded(true);
+    } catch (e) {
+      setError("Failed to generate summary. Please try again.");
+    }
+    setLoading(false);
+  }
+
+  // Don't render until we've checked Supabase for an existing summary
+  if (initialLoading) return null;
+
+  // Don't render if not enough sessions yet
+  if (!canGenerate && !summary) return null;
+
+  return (
+    <div style={{
+      ...sharedStyles.card,
+      borderLeft: `3px solid ${colors.indigo}`,
+      marginBottom: 28,
+    }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: summary && expanded ? 16 : 0 }}>
+        <div style={{ flex: 1 }}>
+          <h3 style={{ margin: "0 0 4px", fontSize: 17, fontWeight: 800 }}>
+            ✦ AI Performance Summary
+          </h3>
+          <p style={{ margin: 0, fontSize: 13, color: colors.textMuted }}>
+            {summary
+              ? dueForRefresh
+                ? `Updated ${sessionsSinceLastGen} sessions ago — ready for a fresh analysis.`
+                : `Based on your last ${sessionsAtGen} sessions. Refreshes every ${SESSIONS_PER_SUMMARY} new sessions.`
+              : `Complete ${SESSIONS_PER_SUMMARY - totalSessions} more session${SESSIONS_PER_SUMMARY - totalSessions !== 1 ? "s" : ""} to unlock your personalised analysis.`}
+          </p>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
+          {/* Generate / Refresh button */}
+          {(!summary || dueForRefresh) && canGenerate && (
+            <button
+              onClick={generateSummary}
+              disabled={loading}
+              style={{
+                ...sharedStyles.btn, ...sharedStyles.btnPrimary,
+                fontSize: 13, padding: "8px 16px",
+                opacity: loading ? 0.7 : 1,
+              }}
+            >
+              {loading ? "Analysing..." : summary ? "↺ Refresh" : "Generate ✦"}
+            </button>
+          )}
+          {/* Collapse toggle — only when summary exists */}
+          {summary && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              style={{
+                background: "none", border: "none", color: colors.slate,
+                fontSize: 18, cursor: "pointer", display: "inline-block",
+                transform: expanded ? "rotate(180deg)" : "none",
+                transition: "transform 0.2s",
+              }}
+            >
+              ↓
+            </button>
+          )}
+        </div>
+      </div>
+
+      {error && (
+        <p style={{ color: colors.red, fontSize: 13, margin: "8px 0 0" }}>⚠️ {error}</p>
+      )}
+
+      {loading && (
+        <div style={{ marginTop: 12, color: colors.slate, fontSize: 14 }}>
+          Analysing your performance across {totalSessions} sessions...
+        </div>
+      )}
+
+      {/* Summary content */}
+      {summary && expanded && !loading && (
+        <div>
+          {/* Overall verdict */}
+          <div style={{
+            background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)",
+            borderRadius: 10, padding: 16, marginBottom: 14,
+          }}>
+            <p style={{ margin: 0, fontSize: 15, color: "#c7d2fe", lineHeight: 1.8 }}>
+              {summary.overallVerdict}
+            </p>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+            {/* Strengths */}
+            <div style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 10, padding: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: colors.green, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
+                ✓ Your Strengths
+              </div>
+              {summary.strengths?.map((s, i) => (
+                <div key={i} style={{ fontSize: 13, color: "#86efac", marginBottom: 6, lineHeight: 1.5 }}>• {s}</div>
+              ))}
+            </div>
+
+            {/* Focus areas */}
+            <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 10, padding: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: colors.amber, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
+                ↑ Focus Areas
+              </div>
+              {summary.improvements?.map((s, i) => (
+                <div key={i} style={{ fontSize: 13, color: "#fcd34d", marginBottom: 6, lineHeight: 1.5 }}>• {s}</div>
+              ))}
+            </div>
+          </div>
+
+          {/* Trends */}
+          {summary.trends?.length > 0 && (
+            <div style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 10, padding: 14, marginBottom: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: colors.blue, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
+                📈 Trending in the Right Direction
+              </div>
+              {summary.trends.map((t, i) => (
+                <div key={i} style={{ fontSize: 13, color: "#93c5fd", marginBottom: 6, lineHeight: 1.5 }}>• {t}</div>
+              ))}
+            </div>
+          )}
+
+          {/* Recommendation */}
+          <div style={{ background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.2)", borderRadius: 10, padding: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
+              🎯 Next Best Action
+            </div>
+            <p style={{ margin: 0, fontSize: 13, color: "#d8b4fe", lineHeight: 1.6 }}>
+              {summary.recommendation}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
 
@@ -61,7 +283,7 @@ function SectionBar({ label, score }) {
   );
 }
 
-// ─── Grade badge (shared by all three card types) ─────────────────────────────
+// ─── Grade badge ──────────────────────────────────────────────────────────────
 
 function GradeBadge({ letter, score }) {
   const color = gradeColor(letter);
@@ -79,7 +301,7 @@ function GradeBadge({ letter, score }) {
 
 // ─── Session cards ────────────────────────────────────────────────────────────
 
-function cardHoverStyle(hovered) {
+function cardStyle(hovered) {
   return {
     background: "rgba(30,41,59,0.8)",
     border: `1px solid ${hovered ? colors.indigo : colors.border}`,
@@ -93,7 +315,7 @@ function cardHoverStyle(hovered) {
 function SessionCard({ session, onClick }) {
   const [hovered, setHovered] = useState(false);
   return (
-    <div onClick={onClick} style={cardHoverStyle(hovered)}
+    <div onClick={onClick} style={cardStyle(hovered)}
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <GradeBadge letter={session.letter_grade} score={session.score} />
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -111,7 +333,7 @@ function SessionCard({ session, onClick }) {
 function FocusedSessionCard({ session, onClick }) {
   const [hovered, setHovered] = useState(false);
   return (
-    <div onClick={onClick} style={cardHoverStyle(hovered)}
+    <div onClick={onClick} style={cardStyle(hovered)}
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <GradeBadge letter={session.letter_grade} score={session.score} />
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -135,7 +357,7 @@ function ScenarioCard({ session, onClick }) {
   const [hovered, setHovered] = useState(false);
   const catColor = SCENARIO_CATEGORIES.find((c) => c.key === session.category)?.color || colors.indigo;
   return (
-    <div onClick={onClick} style={cardHoverStyle(hovered)}
+    <div onClick={onClick} style={cardStyle(hovered)}
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <GradeBadge letter={session.letter_grade} score={session.score} />
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -152,6 +374,40 @@ function ScenarioCard({ session, onClick }) {
       </div>
       <div style={{ color: colors.slate, fontSize: 18, flexShrink: 0, alignSelf: "center" }}>→</div>
     </div>
+  );
+}
+
+// ─── Session list with see-all toggle ────────────────────────────────────────
+
+function SessionList({ sessions, renderCard, emptyState }) {
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? sessions : sessions.slice(0, PREVIEW_COUNT);
+  const hasMore = sessions.length > PREVIEW_COUNT;
+
+  if (sessions.length === 0) return emptyState;
+
+  return (
+    <>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {visible.map(renderCard)}
+      </div>
+      {hasMore && (
+        <button
+          onClick={() => setShowAll(!showAll)}
+          style={{
+            background: "none", border: `1px solid ${colors.border}`,
+            borderRadius: 8, color: colors.slate, fontSize: 13,
+            fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+            padding: "10px", width: "100%", marginTop: 12,
+            transition: "border-color 0.2s, color 0.2s",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = colors.indigo; e.currentTarget.style.color = colors.text; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = colors.border; e.currentTarget.style.color = colors.slate; }}
+        >
+          {showAll ? "↑ Show less" : `↓ Show all ${sessions.length} sessions`}
+        </button>
+      )}
+    </>
   );
 }
 
@@ -211,7 +467,6 @@ function FocusedSessionDetail({ session, onClose }) {
 function ScenarioSessionDetail({ session, onClose }) {
   const [showModel, setShowModel] = useState(false);
   const cat = SCENARIO_CATEGORIES.find((c) => c.key === session.category);
-
   return (
     <ModalShell onClose={onClose}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
@@ -258,10 +513,10 @@ function ScenarioSessionDetail({ session, onClose }) {
 
 function EmptyState({ emoji, title, message, buttonLabel, onAction }) {
   return (
-    <div style={{ ...sharedStyles.card, textAlign: "center", padding: "40px 32px" }}>
-      <div style={{ fontSize: 36, marginBottom: 12 }}>{emoji}</div>
-      <h3 style={{ margin: "0 0 8px", fontSize: 17, fontWeight: 800 }}>{title}</h3>
-      <p style={{ color: colors.slate, margin: "0 0 20px", fontSize: 14, lineHeight: 1.6 }}>{message}</p>
+    <div style={{ ...sharedStyles.card, textAlign: "center", padding: "32px" }}>
+      <div style={{ fontSize: 32, marginBottom: 10 }}>{emoji}</div>
+      <h3 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 800 }}>{title}</h3>
+      <p style={{ color: colors.slate, margin: "0 0 16px", fontSize: 14, lineHeight: 1.6 }}>{message}</p>
       <button onClick={onAction} style={{ ...sharedStyles.btn, ...sharedStyles.btnPrimary, fontSize: 13, padding: "10px 20px" }}>{buttonLabel}</button>
     </div>
   );
@@ -319,7 +574,6 @@ export default function Dashboard({ onStartSession, onStartFocused, onStartScena
         <p style={{ color: colors.textMuted, margin: 0, fontSize: 15 }}>Track how your PM skills are developing over time.</p>
       </div>
 
-      {/* All empty */}
       {!hasAny && (
         <div style={{ ...sharedStyles.card, textAlign: "center", padding: "60px 32px" }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🏋️</div>
@@ -335,7 +589,15 @@ export default function Dashboard({ onStartSession, onStartFocused, onStartScena
 
       {hasAny && (
         <>
-          {/* Stats — full PM plan only */}
+          {/* AI Performance Summary */}
+          <PerformanceSummary
+            userId={user.id}
+            sessions={sessions}
+            focusedSessions={focusedSessions}
+            scenarioSessions={scenarioSessions}
+          />
+
+          {/* Stats */}
           {hasFullSessions && (
             <>
               <div style={{ display: "flex", gap: 16, marginBottom: 28, flexWrap: "wrap" }}>
@@ -357,34 +619,30 @@ export default function Dashboard({ onStartSession, onStartFocused, onStartScena
             </>
           )}
 
-          {/* Full PM plan sessions */}
+          {/* Full PM Plan sessions */}
           <div style={{ marginBottom: 36 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>📋 Full PM Plan Sessions</h3>
               <button onClick={onStartSession} style={{ ...sharedStyles.btn, ...sharedStyles.btnPrimary, fontSize: 13, padding: "10px 18px" }}>✦ New</button>
             </div>
-            {sessions.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {sessions.map((s) => <SessionCard key={s.id} session={s} onClick={() => onViewSession(s)} />)}
-              </div>
-            ) : (
-              <EmptyState emoji="📋" title="No full PM plan sessions yet" message="Complete a full PM plan exercise to see results here." buttonLabel="Start" onAction={onStartSession} />
-            )}
+            <SessionList
+              sessions={sessions}
+              renderCard={(s) => <SessionCard key={s.id} session={s} onClick={() => onViewSession(s)} />}
+              emptyState={<EmptyState emoji="📋" title="No full PM plan sessions yet" message="Complete a full PM plan exercise to see results here." buttonLabel="Start" onAction={onStartSession} />}
+            />
           </div>
 
-          {/* Focused practice sessions */}
+          {/* Focused sessions */}
           <div style={{ marginBottom: 36 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>🎯 Focused Practice Sessions</h3>
               <button onClick={onStartFocused} style={{ ...sharedStyles.btn, ...sharedStyles.btnSecondary, fontSize: 13, padding: "10px 18px" }}>✦ New</button>
             </div>
-            {focusedSessions.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {focusedSessions.map((s) => <FocusedSessionCard key={s.id} session={s} onClick={() => setFocusedDetail(s)} />)}
-              </div>
-            ) : (
-              <EmptyState emoji="🎯" title="No focused practice sessions yet" message="Pick a specific skill to drill — epics, roadmaps, release plans and more." buttonLabel="Start" onAction={onStartFocused} />
-            )}
+            <SessionList
+              sessions={focusedSessions}
+              renderCard={(s) => <FocusedSessionCard key={s.id} session={s} onClick={() => setFocusedDetail(s)} />}
+              emptyState={<EmptyState emoji="🎯" title="No focused practice sessions yet" message="Pick a specific skill to drill — epics, roadmaps, release plans and more." buttonLabel="Start" onAction={onStartFocused} />}
+            />
           </div>
 
           {/* Scenario sessions */}
@@ -393,13 +651,11 @@ export default function Dashboard({ onStartSession, onStartFocused, onStartScena
               <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>⚡ Scenario Runs</h3>
               <button onClick={onStartScenario} style={{ ...sharedStyles.btn, ...sharedStyles.btnSecondary, fontSize: 13, padding: "10px 18px" }}>✦ New</button>
             </div>
-            {scenarioSessions.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {scenarioSessions.map((s) => <ScenarioCard key={s.id} session={s} onClick={() => setScenarioDetail(s)} />)}
-              </div>
-            ) : (
-              <EmptyState emoji="⚡" title="No scenario runs yet" message="Respond to realistic PM challenges across 8 categories." buttonLabel="Start" onAction={onStartScenario} />
-            )}
+            <SessionList
+              sessions={scenarioSessions}
+              renderCard={(s) => <ScenarioCard key={s.id} session={s} onClick={() => setScenarioDetail(s)} />}
+              emptyState={<EmptyState emoji="⚡" title="No scenario runs yet" message="Respond to realistic PM challenges across 8 categories." buttonLabel="Start" onAction={onStartScenario} />}
+            />
           </div>
         </>
       )}
