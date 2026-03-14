@@ -5,6 +5,8 @@ import { fetchSessions, computeMetrics } from "../api/sessions";
 import { fetchFocusedSessions } from "../api/focusedSessions";
 import { fetchScenarioSessions } from "../api/scenarioSessions";
 import { fetchQuizSessions } from "../api/quizSessions";
+import { fetchInterviewSessions } from "../api/interviewSessions";
+import { INTERVIEW_TYPES, COMPANY_TYPES } from "../constants/interviewTypes";
 import { fetchStreak } from "../api/streak";
 import StreakCard from "../components/StreakCard";
 import { EXERCISES } from "../constants/focusedExercises";
@@ -70,6 +72,11 @@ function ScenarioContent({ session }) {
 function QuizContent({ session }) {
   const wrong=session.questions?.filter(q=>!q.correct)||[];
   return <SessionRowContent badge={<GradeBadge letter={session.letter_grade} score={session.score}/>} center={<><Pill>{quizCategoryEmoji(session.category)} {quizCategoryLabel(session.category)}</Pill><span style={{fontSize:11,color:colors.slate}}>{session.question_count}Q</span>{wrong.slice(0,2).map((q,i)=><span key={i} style={{fontSize:10,padding:"1px 5px",borderRadius:20,background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.25)",color:colors.red,fontWeight:600}}>{q.termName}</span>)}{wrong.length>2&&<span style={{fontSize:10,color:colors.textMuted}}>+{wrong.length-2}</span>}</>} right={<span style={{fontSize:11,color:colors.textMuted}}>{formatDate(session.created_at)}</span>}/>;
+}
+function InterviewContent({ session }) {
+  const type    = INTERVIEW_TYPES.find(t => t.key === session.question_type);
+  const company = COMPANY_TYPES.find(c => c.key === session.company_type);
+  return <SessionRowContent badge={<GradeBadge letter={session.letter_grade} score={session.score}/>} center={<><Pill color={type?.color||colors.indigo}>{type?.emoji} {type?.label}</Pill><Pill color={company?.color||colors.slate}>{company?.emoji} {company?.label}</Pill><span style={{fontSize:11,color:colors.slate,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:100}}>{session.question?.slice(0,35)}{session.question?.length>35?"...":""}</span></>} right={<span style={{fontSize:11,color:colors.textMuted}}>{formatDate(session.created_at)}</span>}/>;
 }
 
 function StackedDeck({ sessions, renderContent, onClickSession, accentColor=colors.indigo }) {
@@ -297,7 +304,41 @@ function QuizDetail({ session, onClose }) {
   );
 }
 
-export default function Dashboard({ onStartSession, onStartFocused, onStartScenario, onStartQuiz, onViewSession }) {
+function InterviewDetail({ session, onClose }) {
+  const [showModel,setShowModel]=useState(false);
+  const [showInterviewer,setShowInterviewer]=useState(false);
+  const type    = INTERVIEW_TYPES.find(t => t.key === session.question_type);
+  const company = COMPANY_TYPES.find(c  => c.key === session.company_type);
+  return(
+    <ModalShell onClose={onClose}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <div><div style={{fontSize:12,color:colors.textMuted,marginBottom:4}}>{type?.emoji} {type?.label} · {company?.emoji} {company?.label} · {formatDate(session.created_at)}</div><h2 style={{margin:0,fontSize:18,fontWeight:800}}>Interview Review</h2></div>
+        <button onClick={onClose} style={{background:"none",border:"none",color:colors.slate,fontSize:24,cursor:"pointer"}}>×</button>
+      </div>
+      <div style={{background:`${type?.color}12`,border:`1px solid ${type?.color}30`,borderRadius:10,padding:"14px 16px",marginBottom:14}}>
+        <div style={{fontSize:11,color:type?.color,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{type?.emoji} Question</div>
+        <p style={{margin:0,fontSize:14,color:colors.text,lineHeight:1.7}}>{session.question}</p>
+      </div>
+      <div style={{...sharedStyles.card,textAlign:"center",marginBottom:14}}><div style={{display:"flex",justifyContent:"center",marginBottom:10}}><GradeCircle score={session.score} letter={session.letter_grade}/></div><p style={{color:colors.slate,fontSize:14,margin:0}}>{session.feedback}</p></div>
+      {session.strengths?.length>0&&<div style={{...sharedStyles.card,borderLeft:`3px solid ${colors.green}`,marginBottom:10}}><h3 style={{margin:"0 0 8px",color:colors.green,fontSize:14}}>✓ What you did well</h3>{session.strengths.map((s,i)=><div key={i} style={{color:colors.slate,fontSize:13,marginBottom:4,paddingLeft:10}}>• {s}</div>)}</div>}
+      {session.improvements?.length>0&&<div style={{...sharedStyles.card,borderLeft:`3px solid ${colors.amber}`,marginBottom:10}}><h3 style={{margin:"0 0 8px",color:colors.amber,fontSize:14}}>↑ Areas to Improve</h3>{session.improvements.map((s,i)=><div key={i} style={{color:colors.slate,fontSize:13,marginBottom:4,paddingLeft:10}}>• {s}</div>)}</div>}
+      <div style={{...sharedStyles.card,marginBottom:10}}>
+        <button onClick={()=>setShowInterviewer(!showInterviewer)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",padding:0,fontFamily:"inherit"}}><span style={{fontWeight:800,fontSize:14,color:colors.text}}>🎙 Interviewer's Perspective</span><span style={{color:colors.slate,fontSize:18,display:"inline-block",transform:showInterviewer?"rotate(180deg)":"none",transition:"transform 0.2s"}}>↓</span></button>
+        {showInterviewer&&<div style={{marginTop:12,padding:12,background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.2)",borderRadius:8}}><p style={{margin:0,fontSize:14,color:"#fcd34d",lineHeight:1.8,fontStyle:"italic"}}>"{session.interviewer_perspective}"</p></div>}
+      </div>
+      <div style={{...sharedStyles.card,marginBottom:14}}>
+        <button onClick={()=>setShowModel(!showModel)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",padding:0,fontFamily:"inherit"}}><span style={{fontWeight:800,fontSize:14,color:colors.text}}>💡 Model Answer</span><span style={{color:colors.slate,fontSize:18,display:"inline-block",transform:showModel?"rotate(180deg)":"none",transition:"transform 0.2s"}}>↓</span></button>
+        {showModel&&<div style={{marginTop:12,padding:12,background:"rgba(99,102,241,0.08)",border:"1px solid rgba(99,102,241,0.2)",borderRadius:8}}><p style={{margin:0,fontSize:14,color:"#c7d2fe",lineHeight:1.8,whiteSpace:"pre-wrap"}}>{session.model_answer}</p></div>}
+      </div>
+      <div style={{...sharedStyles.card}}>
+        <div style={{fontSize:11,fontWeight:700,color:colors.slate,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>Your Answer</div>
+        <p style={{margin:0,fontSize:14,color:colors.slateLight,lineHeight:1.6,whiteSpace:"pre-wrap"}}>{session.answer}</p>
+      </div>
+    </ModalShell>
+  );
+}
+
+export default function Dashboard({ onStartSession, onStartFocused, onStartScenario, onStartQuiz, onStartInterview, onViewSession }) {
   const { user } = useAuth();
   const width    = useWindowWidth();
   const isMobile = width < 768;
@@ -306,19 +347,21 @@ export default function Dashboard({ onStartSession, onStartFocused, onStartScena
   const [focusedSessions,setFocusedSessions]=useState([]);
   const [scenarioSessions,setScenarioSessions]=useState([]);
   const [quizSessions,setQuizSessions]=useState([]);
+  const [interviewSessions,setInterviewSessions]=useState([]);
   const [streak,setStreak]=useState({current_streak:0,longest_streak:0,last_activity_date:null});
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
   const [focusedDetail,setFocusedDetail]=useState(null);
   const [scenarioDetail,setScenarioDetail]=useState(null);
   const [quizDetail,setQuizDetail]=useState(null);
+  const [interviewDetail,setInterviewDetail]=useState(null);
 
   useEffect(()=>{
     async function load(){
       if(!user)return;
       try{
-        const [full,focused,scenario,quiz,streakData]=await Promise.all([fetchSessions(user.id),fetchFocusedSessions(user.id),fetchScenarioSessions(user.id),fetchQuizSessions(user.id),fetchStreak(user.id)]);
-        setSessions(full);setFocusedSessions(focused);setScenarioSessions(scenario);setQuizSessions(quiz);setStreak(streakData);
+        const [full,focused,scenario,quiz,interviewData,streakData]=await Promise.all([fetchSessions(user.id),fetchFocusedSessions(user.id),fetchScenarioSessions(user.id),fetchQuizSessions(user.id),fetchInterviewSessions(user.id),fetchStreak(user.id)]);
+        setSessions(full);setFocusedSessions(focused);setScenarioSessions(scenario);setQuizSessions(quiz);setInterviewSessions(interviewData);setStreak(streakData);
       }catch(e){setError("Failed to load sessions. Please refresh.");}
       setLoading(false);
     }
@@ -326,7 +369,7 @@ export default function Dashboard({ onStartSession, onStartFocused, onStartScena
   },[user]);
 
   const metrics=computeMetrics(sessions);
-  const hasAny=sessions.length>0||focusedSessions.length>0||scenarioSessions.length>0||quizSessions.length>0;
+  const hasAny=sessions.length>0||focusedSessions.length>0||scenarioSessions.length>0||quizSessions.length>0||interviewSessions.length>0;
   const hasFullSessions=sessions.length>0;
 
   if(loading)return<div style={{textAlign:"center",padding:"80px 0",color:colors.slate}}>Loading your progress...</div>;
@@ -337,6 +380,7 @@ export default function Dashboard({ onStartSession, onStartFocused, onStartScena
       {focusedDetail&&<FocusedSessionDetail session={focusedDetail} onClose={()=>setFocusedDetail(null)}/>}
       {scenarioDetail&&<ScenarioSessionDetail session={scenarioDetail} onClose={()=>setScenarioDetail(null)}/>}
       {quizDetail&&<QuizDetail session={quizDetail} onClose={()=>setQuizDetail(null)}/>}
+      {interviewDetail&&<InterviewDetail session={interviewDetail} onClose={()=>setInterviewDetail(null)}/>}
 
       <div style={{marginBottom:isMobile?16:20}}>
         <h2 style={{margin:"0 0 4px",fontSize:isMobile?24:28,fontWeight:900,fontFamily:"'Playfair Display',serif",background:"linear-gradient(135deg, #e2e8f0, #a5b4fc)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Your Progress</h2>
@@ -395,9 +439,13 @@ export default function Dashboard({ onStartSession, onStartFocused, onStartScena
             <SectionHeader title="⚡ Scenario Runs" onNew={onStartScenario}/>
             {scenarioSessions.length>0?<StackedDeck sessions={scenarioSessions} renderContent={s=><ScenarioContent session={s}/>} onClickSession={s=>setScenarioDetail(s)} accentColor={colors.amber}/>:<EmptyState emoji="⚡" title="No scenario runs yet" message="Respond to PM challenges." buttonLabel="Start" onAction={onStartScenario}/>}
           </div>
-          <div>
+          <div style={{marginBottom:isMobile?20:28}}>
             <SectionHeader title="📚 Glossary Quizzes" onNew={onStartQuiz}/>
             {quizSessions.length>0?<StackedDeck sessions={quizSessions} renderContent={s=><QuizContent session={s}/>} onClickSession={s=>setQuizDetail(s)} accentColor={colors.green}/>:<EmptyState emoji="📚" title="No quizzes yet" message="Test your PM terminology." buttonLabel="Start" onAction={onStartQuiz}/>}
+          </div>
+          <div>
+            <SectionHeader title="🎤 Interview Prep" onNew={onStartInterview}/>
+            {interviewSessions.length>0?<StackedDeck sessions={interviewSessions} renderContent={s=><InterviewContent session={s}/>} onClickSession={s=>setInterviewDetail(s)} accentColor={"#8b5cf6"}/>:<EmptyState emoji="🎤" title="No interview sessions yet" message="Practice real PM interview questions with AI feedback." buttonLabel="Start" onAction={onStartInterview}/>}
           </div>
         </>
       )}

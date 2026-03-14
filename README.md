@@ -206,7 +206,7 @@ All tables have Row Level Security enabled — users can only read and write the
 - [x] Glossary Quiz — multiple choice, by category or all terms
 - [x] Mobile responsive — bottom tab bar navigation
 - [x] Practice streak
-- [ ] PM Interview Prep Mode
+- [x] PM Interview Prep Mode
 - [ ] Structured learning paths
 - [ ] LinkedIn progress card
 - [ ] AI Mentor / Ask Anything mode
