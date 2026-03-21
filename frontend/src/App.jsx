@@ -32,7 +32,6 @@ function Router() {
   if (path === "/login")         return <Login />;
   if (path === "/auth/callback") return <Callback />;
   if (path === "/mfa-setup")     return <MFASetup />;
-  if (path === "/profile")       return <ProtectedRoute><Profile /></ProtectedRoute>;
   if (path === "/app" || path === "/") return <ProtectedRoute><PMGymApp /></ProtectedRoute>;
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0f172a", color: "#94a3b8", fontFamily: "sans-serif" }}>
@@ -63,11 +62,11 @@ function NavTab({ label, active, onClick }) {
 
 function ModeToggle({ mode, onChange, isMobile }) {
   const modes = [
-    { key: "full",      label: isMobile ? "📋" : "📋 Full PM Plan" },
-    { key: "focused",   label: isMobile ? "🎯" : "🎯 Focused" },
-    { key: "scenario",  label: isMobile ? "⚡" : "⚡ Scenarios" },
-    { key: "quiz",      label: isMobile ? "📚" : "📚 Quiz" },
-    { key: "interview", label: isMobile ? "🎤" : "🎤 Interview" },
+    { key: "full",      label: "Full PM Plan" },
+    { key: "focused",   label: "Focused" },
+    { key: "scenario",  label: "Scenarios" },
+    { key: "quiz",      label: "Quiz" },
+    { key: "interview", label: "Interview" },
   ];
   return (
     <div style={{
@@ -76,13 +75,17 @@ function ModeToggle({ mode, onChange, isMobile }) {
     }}>
       {modes.map(({ key, label }) => (
         <button key={key} onClick={() => onChange(key)} style={{
-          flex: 1, padding: isMobile ? "10px 4px" : "10px 8px",
+          flex: 1,
+          padding: isMobile ? "9px 2px" : "10px 8px",
           borderRadius: 8, border: "none", cursor: "pointer",
-          fontWeight: 700, fontSize: isMobile ? 16 : 12,
+          fontWeight: 700,
+          fontSize: isMobile ? 10 : 12,
           fontFamily: "inherit", transition: "all 0.2s",
           background: mode === key ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "transparent",
           color: mode === key ? "white" : "#64748b",
           boxShadow: mode === key ? "0 2px 8px rgba(99,102,241,0.4)" : "none",
+          letterSpacing: isMobile ? "0.01em" : "0.02em",
+          lineHeight: 1.3,
         }}>
           {label}
         </button>
@@ -98,7 +101,9 @@ function PMGymApp() {
   const width    = useWindowWidth();
   const isMobile = width < 768;
 
+  // view: "dashboard" | "session" | "practice" | "glossary" | "profile"
   const [view,          setView]          = useState("dashboard");
+  const [prevView,      setPrevView]      = useState("dashboard"); // for profile back nav
   const [practiceMode,  setPracticeMode]  = useState("full");
   const [activeSession, setActiveSession] = useState(null);
 
@@ -117,12 +122,18 @@ function PMGymApp() {
     async function fetchUsername() {
       if (!user) return;
       const { data } = await supabase.from("profiles").select("username").eq("id", user.id).maybeSingle();
-      setUsername(data?.username || user.user_metadata?.full_name?.split(" ")[0] || user.email?.split("@")[0] || "PM Athlete");
+      setUsername(data?.username || user.user_metadata?.full_name?.split(" ")[0] || user.email?.split("@")[0] || "PM");
     }
     fetchUsername();
   }, [user]);
 
+  function navigateTo(newView) {
+    setPrevView(view);
+    setView(newView);
+  }
+
   function startPractice(mode = "full") {
+    setPrevView(view);
     setPracticeMode(mode);
     setView("practice");
     setPhase(PHASES.HOME);
@@ -130,10 +141,10 @@ function PMGymApp() {
   }
 
   function handleTabNavigate(tab) {
-    if (tab === "profile")   { window.location.href = "/profile"; return; }
-    if (tab === "glossary")  { setView("glossary"); return; }
+    if (tab === "profile")   { navigateTo("profile"); return; }
+    if (tab === "glossary")  { navigateTo("glossary"); return; }
     if (tab === "practice")  { startPractice("full"); return; }
-    if (tab === "dashboard") { setView("dashboard"); return; }
+    if (tab === "dashboard") { navigateTo("dashboard"); return; }
   }
 
   async function handleGenerateVision() {
@@ -165,12 +176,13 @@ function PMGymApp() {
   }
 
   function handleReset() { setPhase(PHASES.HOME); setVision(""); setForm(EMPTY_FORM); setResults(null); setError(""); }
-  function handleViewSession(session) { setActiveSession(session); setView("session"); }
+  function handleViewSession(session) { setActiveSession(session); navigateTo("session"); }
 
-  const activeTab = view === "profile" ? "profile"
-    : view === "glossary" ? "glossary"
-    : view === "practice" ? "practice"
-    : "dashboard";
+  const activeTab =
+    view === "profile"   ? "profile"   :
+    view === "glossary"  ? "glossary"  :
+    view === "practice"  ? "practice"  :
+    "dashboard";
 
   return (
     <div style={{
@@ -178,23 +190,23 @@ function PMGymApp() {
       background: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)",
       fontFamily: "'Inter', 'Segoe UI', sans-serif",
       color: "#e2e8f0",
-      paddingBottom: isMobile ? 72 : 0,
+      paddingBottom: isMobile ? 90 : 0,
     }}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
 
-      {/* Desktop navbar */}
+      {/* ── Desktop top navbar ── */}
       {!isMobile && (
         <div style={{ borderBottom: "1px solid #1e293b", padding: "0 24px", position: "sticky", top: 0, zIndex: 10, background: "rgba(15,23,42,0.95)", backdropFilter: "blur(10px)" }}>
           <div style={{ maxWidth: 720, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 56 }}>
-            <span onClick={() => setView("dashboard")} style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900, fontSize: 20, background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", cursor: "pointer" }}>
+            <span onClick={() => navigateTo("dashboard")} style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900, fontSize: 20, background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", cursor: "pointer" }}>
               PM Gym
             </span>
             <div style={{ display: "flex", gap: 24 }}>
-              <NavTab label="Dashboard" active={view === "dashboard" || view === "session"} onClick={() => setView("dashboard")} />
+              <NavTab label="Dashboard" active={view === "dashboard" || view === "session"} onClick={() => navigateTo("dashboard")} />
               <NavTab label="Practice"  active={view === "practice"}  onClick={() => startPractice("full")} />
-              <NavTab label="Glossary"  active={view === "glossary"}  onClick={() => setView("glossary")} />
+              <NavTab label="Glossary"  active={view === "glossary"}  onClick={() => navigateTo("glossary")} />
             </div>
-            <button onClick={() => { window.location.href = "/profile"; }} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+            <button onClick={() => navigateTo("profile")} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ fontSize: 14, fontWeight: 600, color: "#94a3b8" }}>{username}</span>
               {avatarUrl ? (
                 <img src={avatarUrl} alt={username} style={{ width: 32, height: 32, borderRadius: "50%" }} />
@@ -208,23 +220,23 @@ function PMGymApp() {
         </div>
       )}
 
-      {/* Mobile top bar */}
+      {/* ── Mobile top bar ── */}
       {isMobile && (
-        <div style={{ padding: "12px 20px", borderBottom: "1px solid #1e293b", background: "rgba(15,23,42,0.95)", backdropFilter: "blur(10px)", position: "sticky", top: 0, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span onClick={() => setView("dashboard")} style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900, fontSize: 22, background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", cursor: "pointer" }}>
+        <div style={{ padding: "10px 20px", borderBottom: "1px solid #1e293b", background: "rgba(15,23,42,0.95)", backdropFilter: "blur(10px)", position: "sticky", top: 0, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span onClick={() => navigateTo("dashboard")} style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900, fontSize: 22, background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", cursor: "pointer" }}>
             PM Gym
           </span>
           {avatarUrl ? (
-            <img src={avatarUrl} alt={username} style={{ width: 30, height: 30, borderRadius: "50%", cursor: "pointer" }} onClick={() => window.location.href = "/profile"} />
+            <img src={avatarUrl} alt={username} style={{ width: 30, height: 30, borderRadius: "50%", cursor: "pointer" }} onClick={() => navigateTo("profile")} />
           ) : (
-            <div onClick={() => window.location.href = "/profile"} style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "white", cursor: "pointer" }}>
+            <div onClick={() => navigateTo("profile")} style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "white", cursor: "pointer" }}>
               {username?.[0]?.toUpperCase() || "?"}
             </div>
           )}
         </div>
       )}
 
-      {/* Content */}
+      {/* ── Content ── */}
       <div style={{ maxWidth: 720, margin: "0 auto", padding: isMobile ? "24px 16px" : "40px 24px" }}>
 
         {view === "dashboard" && (
@@ -238,17 +250,25 @@ function PMGymApp() {
           />
         )}
 
-        {view === "session"  && activeSession && <SessionDetail session={activeSession} onBack={() => setView("dashboard")} />}
+        {view === "session" && activeSession && (
+          <SessionDetail session={activeSession} onBack={() => navigateTo("dashboard")} />
+        )}
+
         {view === "glossary" && <Glossary />}
+
+        {/* Profile now renders inline — no separate route */}
+        {view === "profile" && (
+          <Profile onBack={() => navigateTo(prevView || "dashboard")} />
+        )}
 
         {view === "practice" && (
           <>
             <ModeToggle mode={practiceMode} onChange={m => { setPracticeMode(m); handleReset(); }} isMobile={isMobile} />
 
-            {practiceMode === "interview" && <InterviewPrep   onGoToDashboard={() => setView("dashboard")} />}
-            {practiceMode === "quiz"      && <GlossaryQuiz    onGoToDashboard={() => setView("dashboard")} />}
-            {practiceMode === "scenario"  && <ScenarioRuns    onGoToDashboard={() => setView("dashboard")} />}
-            {practiceMode === "focused"   && <FocusedPractice onGoToDashboard={() => setView("dashboard")} />}
+            {practiceMode === "interview" && <InterviewPrep   onGoToDashboard={() => navigateTo("dashboard")} />}
+            {practiceMode === "quiz"      && <GlossaryQuiz    onGoToDashboard={() => navigateTo("dashboard")} />}
+            {practiceMode === "scenario"  && <ScenarioRuns    onGoToDashboard={() => navigateTo("dashboard")} />}
+            {practiceMode === "focused"   && <FocusedPractice onGoToDashboard={() => navigateTo("dashboard")} />}
 
             {practiceMode === "full" && (
               <>
@@ -276,7 +296,7 @@ function PMGymApp() {
                   <>
                     <Results vision={vision} results={results} onRetry={handleReset} onEdit={() => setPhase(PHASES.FORM)} />
                     <div style={{ marginTop: 16, textAlign: "center" }}>
-                      <button onClick={() => setView("dashboard")} style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 14, fontFamily: "inherit" }}>
+                      <button onClick={() => navigateTo("dashboard")} style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 14, fontFamily: "inherit" }}>
                         View on Dashboard →
                       </button>
                     </div>
@@ -288,7 +308,10 @@ function PMGymApp() {
         )}
       </div>
 
-      {isMobile && <BottomTabBar activeView={view} onNavigate={handleTabNavigate} />}
+      {/* ── Bottom tab bar (mobile only) ── */}
+      {isMobile && (
+        <BottomTabBar activeView={activeTab} onNavigate={handleTabNavigate} />
+      )}
     </div>
   );
 }
