@@ -427,6 +427,10 @@ export default function Dashboard({ onStartSession, onStartFocused, onStartScena
             </>
           )}
 
+          <div style={{marginBottom:isMobile?16:24}}>
+            <h3 style={{margin:0,fontSize:isMobile?16:18,fontWeight:900,fontFamily:"'Playfair Display',serif",background:"linear-gradient(135deg, #e2e8f0, #a5b4fc)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Past Sessions</h3>
+          </div>
+
           <div style={{marginBottom:isMobile?20:28}}>
             <SectionHeader title="📋 Full PM Plan" onNew={onStartSession}/>
             {sessions.length>0?<StackedDeck sessions={sessions} renderContent={s=><FullPMContent session={s}/>} onClickSession={onViewSession}/>:<EmptyState emoji="📋" title="No full PM plan sessions yet" message="Complete a full PM plan exercise." buttonLabel="Start" onAction={onStartSession}/>}
