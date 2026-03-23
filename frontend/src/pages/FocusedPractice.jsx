@@ -58,7 +58,7 @@ function FocusedResults({ results, exercise, onRetry, onPickNew, onDashboard, is
   );
 }
 
-export default function FocusedPractice({ onGoToDashboard }) {
+export default function FocusedPractice({ onGoToDashboard, onComplete }) {
   const { user } = useAuth();
   const width    = useWindowWidth();
   const isMobile = width < 768;
@@ -90,6 +90,7 @@ export default function FocusedPractice({ onGoToDashboard }) {
       const data = await gradeFocusedAnswer(buildFocusedGradingPrompt(exercise, vision, fullContext, answer));
       await saveFocusedSession(user.id, exercise.key, vision, context, answer, data);
       await updateStreak(user.id);
+      onComplete?.();
       setResults(data); setPhase(PHASES.RESULTS);
     } catch (e) { setError("Grading failed."); setPhase(PHASES.EXERCISE); }
   }

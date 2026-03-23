@@ -16,8 +16,8 @@ function validatePassword(password) {
 
 function PasswordStrength({ password }) {
   if (!password) return null;
-  const rules  = validatePassword(password);
-  const passed = rules.filter((r) => r.test).length;
+  const rules    = validatePassword(password);
+  const passed   = rules.filter((r) => r.test).length;
   const barColor = passed <= 2 ? colors.red : passed <= 3 ? colors.amber : colors.green;
   return (
     <div style={{ marginTop: 8, marginBottom: 4 }}>
@@ -61,19 +61,84 @@ function FieldLabel({ children }) {
   );
 }
 
+// ─── Forgot password screen ───────────────────────────────────────────────────
+
+function ForgotPassword({ onBack, isMobile }) {
+  const [email,      setEmail]      = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [sent,       setSent]       = useState(false);
+  const [error,      setError]      = useState("");
+
+  async function handleReset() {
+    if (!email) { setError("Please enter your email address."); return; }
+    setSubmitting(true); setError("");
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) setError(error.message);
+    else setSent(true);
+    setSubmitting(false);
+  }
+
+  if (sent) {
+    return (
+      <div style={{ ...sharedStyles.card, textAlign: "center", padding: isMobile ? "32px 20px" : "40px 32px" }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>📬</div>
+        <h2 style={{ margin: "0 0 12px", fontSize: 22, fontWeight: 800, color: colors.text }}>Check your email</h2>
+        <p style={{ color: colors.slate, fontSize: 15, lineHeight: 1.7, margin: "0 0 24px" }}>
+          We sent a password reset link to <strong style={{ color: colors.text }}>{email}</strong>.
+        </p>
+        <button onClick={onBack} style={{ ...sharedStyles.btn, ...sharedStyles.btnSecondary, width: "100%", justifyContent: "center" }}>
+          Back to login
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ ...sharedStyles.card, padding: isMobile ? "24px 20px" : "32px" }}>
+      <button onClick={onBack} style={{ background: "none", border: "none", color: colors.slate, cursor: "pointer", fontSize: 13, fontFamily: "inherit", padding: 0, marginBottom: 20, display: "flex", alignItems: "center", gap: 6 }}>
+        ← Back to login
+      </button>
+      <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 800, color: colors.slateLight }}>Reset your password</h2>
+      <p style={{ color: colors.textMuted, fontSize: 14, margin: "0 0 24px" }}>
+        Enter your email and we'll send you a reset link.
+      </p>
+      <div style={{ marginBottom: 16 }}>
+        <FieldLabel>Email</FieldLabel>
+        <Input type="email" placeholder="you@example.com" value={email} onChange={setEmail} error={!!error} />
+      </div>
+      {error && (
+        <div style={{ background: "#450a0a", border: `1px solid ${colors.red}`, borderRadius: 8, padding: "10px 14px", marginBottom: 16, color: "#fca5a5", fontSize: 13 }}>
+          ⚠️ {error}
+        </div>
+      )}
+      <button
+        onClick={handleReset}
+        disabled={submitting}
+        style={{ ...sharedStyles.btn, ...sharedStyles.btnPrimary, width: "100%", justifyContent: "center", opacity: submitting ? 0.7 : 1 }}
+      >
+        {submitting ? "Sending..." : "Send reset link"}
+      </button>
+    </div>
+  );
+}
+
+// ─── Main Login page ──────────────────────────────────────────────────────────
+
 export default function Login() {
   const { user, loading, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
   const width    = useWindowWidth();
   const isMobile = width < 768;
 
-  const [mode,       setMode]       = useState("login");
-  const [email,      setEmail]      = useState("");
-  const [username,   setUsername]   = useState("");
-  const [password,   setPassword]   = useState("");
-  const [confirm,    setConfirm]    = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error,      setError]      = useState("");
-  const [emailSent,  setEmailSent]  = useState(false);
+  const [mode,        setMode]        = useState("login"); // "login" | "signup" | "forgot"
+  const [email,       setEmail]       = useState("");
+  const [username,    setUsername]    = useState("");
+  const [password,    setPassword]    = useState("");
+  const [confirm,     setConfirm]     = useState("");
+  const [submitting,  setSubmitting]  = useState(false);
+  const [error,       setError]       = useState("");
+  const [emailSent,   setEmailSent]   = useState(false);
 
   useEffect(() => { if (!loading && user) window.location.href = "/app"; }, [user, loading]);
 
@@ -96,15 +161,26 @@ export default function Login() {
 
   async function handleEmailSignUp() {
     setError("");
-    if (!username.trim()) { setError("Please choose a username."); return; }
-    if (username.trim().length < 3) { setError("Username must be at least 3 characters."); return; }
-    if (!/^[a-zA-Z0-9_]+$/.test(username.trim())) { setError("Username can only contain letters, numbers, and underscores."); return; }
-    if (!validatePassword(password).every((r) => r.test)) { setError("Password doesn't meet all requirements."); return; }
-    if (password !== confirm) { setError("Passwords don't match."); return; }
-    if (!email) { setError("Please enter your email."); return; }
+    if (!username.trim())                                    { setError("Please choose a username."); return; }
+    if (username.trim().length < 3)                          { setError("Username must be at least 3 characters."); return; }
+    if (!/^[a-zA-Z0-9_]+$/.test(username.trim()))           { setError("Username can only contain letters, numbers, and underscores."); return; }
+    if (!validatePassword(password).every((r) => r.test))   { setError("Password doesn't meet all requirements."); return; }
+    if (password !== confirm)                                { setError("Passwords don't match."); return; }
+    if (!email)                                              { setError("Please enter your email."); return; }
+
     setSubmitting(true);
+
+    // Check if email is blocked due to recent deletion
+    const { data: blocked } = await supabase.rpc("is_email_blocked", { check_email: email.toLowerCase().trim() });
+    if (blocked) {
+      setError("This email address cannot be used to create a new account for 30 days after deletion.");
+      setSubmitting(false);
+      return;
+    }
+
     const { data: existing } = await supabase.from("profiles").select("username").eq("username", username.trim()).maybeSingle();
     if (existing) { setError("That username is already taken."); setSubmitting(false); return; }
+
     const { error } = await signUpWithEmail(email, password, username.trim());
     if (error) setError(error.message); else setEmailSent(true);
     setSubmitting(false);
@@ -126,6 +202,14 @@ export default function Login() {
             </button>.
           </p>
         </div>
+      </PageShell>
+    );
+  }
+
+  if (mode === "forgot") {
+    return (
+      <PageShell isMobile={isMobile}>
+        <ForgotPassword onBack={() => switchMode("login")} isMobile={isMobile} />
       </PageShell>
     );
   }
@@ -174,7 +258,6 @@ export default function Login() {
           <div style={{ flex: 1, height: 1, background: colors.border }} />
         </div>
 
-        {/* Username (signup) */}
         {mode === "signup" && (
           <div style={{ marginBottom: 16 }}>
             <FieldLabel>Username</FieldLabel>
@@ -187,7 +270,7 @@ export default function Login() {
           <Input type="email" placeholder="you@example.com" value={email} onChange={setEmail} error={!!error && !email} />
         </div>
 
-        <div style={{ marginBottom: mode === "signup" ? 8 : 20 }}>
+        <div style={{ marginBottom: mode === "signup" ? 8 : 8 }}>
           <FieldLabel>Password</FieldLabel>
           <Input type="password" placeholder={mode === "signup" ? "Create a strong password" : "Your password"} value={password} onChange={setPassword} error={!!error && !password} />
           {mode === "signup" && <PasswordStrength password={password} />}
@@ -203,6 +286,18 @@ export default function Login() {
           </div>
         )}
 
+        {/* Forgot password link — login only */}
+        {mode === "login" && (
+          <div style={{ textAlign: "right", marginBottom: 16, marginTop: 4 }}>
+            <button
+              onClick={() => switchMode("forgot")}
+              style={{ background: "none", border: "none", color: colors.indigo, cursor: "pointer", fontSize: 13, fontFamily: "inherit", padding: 0 }}
+            >
+              Forgot your password?
+            </button>
+          </div>
+        )}
+
         {error && (
           <div style={{ background: "#450a0a", border: `1px solid ${colors.red}`, borderRadius: 8, padding: "10px 14px", marginBottom: 16, color: "#fca5a5", fontSize: 13 }}>
             ⚠️ {error}
@@ -212,7 +307,7 @@ export default function Login() {
         <button
           onClick={mode === "login" ? handleEmailSignIn : handleEmailSignUp}
           disabled={submitting}
-          style={{ ...sharedStyles.btn, ...sharedStyles.btnPrimary, width: "100%", justifyContent: "center", opacity: submitting ? 0.7 : 1, cursor: submitting ? "not-allowed" : "pointer" }}
+          style={{ ...sharedStyles.btn, ...sharedStyles.btnPrimary, width: "100%", justifyContent: "center", opacity: submitting ? 0.7 : 1 }}
         >
           {submitting ? "Please wait..." : mode === "login" ? "Log in" : "Create Account"}
         </button>

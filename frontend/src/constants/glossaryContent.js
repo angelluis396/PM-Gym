@@ -183,4 +183,171 @@ export const GLOSSARY = [
       },
     ],
   },
+  {
+    key:   "scrum",
+    label: "Scrum",
+    emoji: "🔄",
+    terms: [
+      {
+        name: "Scrum",
+        definition:
+          "Scrum is a lightweight framework designed to help teams tackle complex problems by delivering value in short, repeatable cycles called Sprints. It involves three key roles (Product Owner, Scrum Master, and the Scrum Team) working together to build, inspect, and adapt incrementally. The loop is simple: prioritize work, build it, review it, and repeat.",
+        example:
+          "A team building a mobile app uses Scrum to ship a new feature every two weeks, gathering user feedback after each Sprint to inform what gets built next.",
+        tip: "As a Product Owner, your most important job in Scrum is maintaining a well-ordered, clearly prioritized Product Backlog. If the backlog is a mess, the whole framework breaks down.",
+      },
+      {
+        name: "Scrum Theory",
+        definition:
+          "Scrum is built on two foundations: empiricism (learning through experience and observation) and lean thinking (eliminating waste and focusing on what matters most). It uses an iterative, incremental approach to manage risk and improve predictability, relying on three core pillars: transparency, inspection, and adaptation. Four formal events are built into every Sprint specifically to put these pillars into practice.",
+        example:
+          "A team notices mid-project that a feature isn't resonating with users. Because Scrum builds in regular inspection points, they can adapt quickly rather than spending months building the wrong thing.",
+        tip: "The three pillars only work if you're honest about progress. As a PM, resist the urge to sugarcoat Sprint outcomes to stakeholders — real transparency is what allows the team to actually improve.",
+      },
+      {
+        name: "Scrum Values",
+        definition:
+          "Scrum runs on five core values: Commitment, Focus, Openness, Respect, and Courage. These aren't just feel-good principles — they are the behavioral foundation that makes transparency, inspection, and adaptation actually possible. When a team genuinely lives these values, trust is built naturally and the entire framework becomes more effective.",
+        example:
+          "A developer has the courage to flag that a Sprint goal is unrealistic during planning, rather than staying quiet and missing the deadline. That one moment of honesty reflects multiple values working together: courage, openness, and respect for the team's time.",
+        tip: "As a Product Owner, you set the tone. If you are not open about shifting priorities or don't have the courage to push back on unrealistic stakeholder demands, don't expect your team to embody these values either.",
+      },
+      {
+        name: "Scrum Team",
+        definition:
+          "The Scrum Team is a small, cross-functional, self-managing unit made up of one Product Owner, one Scrum Master, and Developers, with no internal hierarchies or sub-teams. Everyone has the skills needed to deliver value each Sprint, and the team collectively decides who does what, when, and how. Ideally 10 people or fewer, the whole team is accountable for producing a valuable Increment every Sprint.",
+        example:
+          "Rather than handing designs to developers and waiting, a Scrum Team has designers, developers, and a QA engineer all working together within the same Sprint, eliminating handoff delays and bottlenecks.",
+        tip: "As a Product Owner, resist the urge to micromanage how the team builds things. Your job is to clarify the 'what' and 'why' — the team owns the 'how.' Respecting that boundary is what keeps the team truly self-managing.",
+      },
+      {
+        name: "Developers",
+        definition:
+          "Developers are the members of the Scrum Team responsible for actually building a usable Increment each Sprint. Their core accountabilities are consistent: planning the Sprint, maintaining quality through the Definition of Done, adapting daily toward the Sprint Goal, and holding each other accountable. Despite the title, 'Developers' isn't limited to software engineers — it refers to anyone doing the hands-on work of creating the product.",
+        example:
+          "A cross-functional group including a UX designer, two engineers, and a QA specialist all operate as Developers within the same Sprint, each contributing their skills toward a shared Increment.",
+        tip: "As a Product Owner, build a strong working relationship with your Developers. The clearer and more available you are when they have questions about backlog items, the less time they waste on assumptions.",
+      },
+      {
+        name: "Product Owner",
+        definition:
+          "The Product Owner is a single person accountable for maximizing the value of the product by managing the Product Backlog — defining the Product Goal, creating and communicating backlog items, and keeping the backlog ordered and transparent. They serve as the bridge between stakeholders and the Scrum Team, translating business needs into a clear, prioritized body of work.",
+        example:
+          "Multiple stakeholders are pushing for different features. Rather than letting the team get pulled in every direction, the Product Owner evaluates each request, makes a call on priority, and updates the backlog accordingly — one decision maker, one source of truth.",
+        tip: "Guard your backlog fiercely. Stakeholders will always try to bypass the process and inject work directly to the team. As the Product Owner, you are the single point of authority — if you don't protect that boundary, prioritization becomes chaos.",
+      },
+      {
+        name: "Scrum Master",
+        definition:
+          "The Scrum Master is a servant-leader accountable for ensuring Scrum is understood and practiced effectively by both the Scrum Team and the broader organization. They coach the team on self-management, remove impediments blocking progress, and make sure all Scrum events happen and are productive. Unlike a traditional manager, the Scrum Master leads by serving — clearing the path so the team can do their best work.",
+        example:
+          "The development team keeps getting pulled into ad-hoc meetings by other departments mid-Sprint. The Scrum Master steps in, works with leadership to protect the team's time, and establishes a clear process for how outside requests should be handled.",
+        tip: "As a Product Owner, your Scrum Master is one of your most valuable allies. Lean on them to handle process and team dynamics so you can stay focused on the backlog and stakeholders. A strong PO and Scrum Master partnership is often the difference between a high-functioning team and a struggling one.",
+      },
+      {
+        name: "Scrum Events",
+        definition:
+          "Scrum Events are a set of formal, structured opportunities built into every Sprint for the team to inspect and adapt. They create regularity and are designed to replace the need for unplanned, ad-hoc meetings. The Sprint itself acts as the container for all other events — skipping or shortchanging any of them means losing a critical checkpoint in the process.",
+        example:
+          "A team that skips the Sprint Retrospective for three Sprints in a row finds the same communication issues surfacing repeatedly, with no structured time to address them.",
+        tip: "As a Product Owner, treat every Scrum event as non-negotiable. It can be tempting to skip a Sprint Review when things feel busy, but these events are where misalignment gets caught early. Missing them doesn't save time — it creates more problems down the road.",
+      },
+      {
+        name: "The Sprint",
+        definition:
+          "A Sprint is a fixed-length event of one month or less that acts as the heartbeat of Scrum, turning ideas into a valuable Increment. All Scrum events happen within the Sprint, and during it the team protects the Sprint Goal by keeping quality high, refining the backlog as needed, and only renegotiating scope with the Product Owner when necessary. Shorter Sprints mean faster learning cycles and lower risk.",
+        example:
+          "A team running two-week Sprints discovers early that a feature is technically unfeasible. Because the Sprint is short, they lose two weeks at most — not two months — and can adapt quickly.",
+        tip: "Only you as the Product Owner can cancel a Sprint, but use that power sparingly. If Sprint Goals are becoming obsolete frequently, that's a signal your backlog refinement and stakeholder alignment needs work upstream — before Sprint Planning.",
+      },
+      {
+        name: "Sprint Planning",
+        definition:
+          "Sprint Planning kicks off every Sprint with the entire Scrum Team collaborating to answer three questions: why is this Sprint valuable (the Sprint Goal), what can be done this Sprint (selected backlog items), and how will the work get done (the Developers' plan). The Product Owner comes prepared with prioritized backlog items, but the Developers decide how much they can take on and how they will execute.",
+        example:
+          "The Product Owner proposes that this Sprint's goal is to improve checkout conversion. The team selects the top relevant backlog items, breaks them into tasks, and aligns on a Sprint Goal before the timebox ends.",
+        tip: "Come to Sprint Planning with your top backlog items already refined and ordered — don't use Sprint Planning as a refinement session. The more prepared you are walking in, the stronger the Sprint Goal coming out.",
+      },
+      {
+        name: "Daily Scrum",
+        definition:
+          "The Daily Scrum is a 15-minute event held at the same time and place every day, where Developers inspect progress toward the Sprint Goal and adjust their plan for the next day of work. It is owned by the Developers — not the Product Owner or Scrum Master — and the format is flexible as long as it stays focused on the Sprint Goal and produces an actionable plan.",
+        example:
+          "During the Daily Scrum, a developer flags that a third-party API integration is taking longer than expected. The team immediately re-plans the day's work to avoid blocking other Sprint items.",
+        tip: "As a Product Owner, resist the urge to turn the Daily Scrum into a status report for yourself. It is the Developers' event. Showing up and redirecting the conversation undermines the team's self-management and focus.",
+      },
+      {
+        name: "Sprint Review",
+        definition:
+          "The Sprint Review is a collaborative working session held at the end of the Sprint where the Scrum Team presents the Increment to key stakeholders, discusses progress toward the Product Goal, and determines what to do next. It is not just a demo — it is a two-way conversation where feedback from stakeholders can directly influence the Product Backlog and future direction.",
+        example:
+          "The team demos a new search feature and stakeholders immediately notice it doesn't match how real users actually search. That insight gets captured and the Product Owner adjusts the backlog before the next Sprint begins.",
+        tip: "Treat the Sprint Review as a strategic alignment meeting, not a victory lap. Bring the right stakeholders, encourage honest feedback, and come ready to update the backlog on the spot. The quality of your next Sprint depends heavily on what you learn in this one.",
+      },
+      {
+        name: "Sprint Retrospective",
+        definition:
+          "The Sprint Retrospective is the final event of the Sprint, where the Scrum Team reflects on how they worked together — covering people, processes, tools, and the Definition of Done — to identify what went well and what needs to improve. Unlike the Sprint Review which focuses on the product, the Retro focuses on the team itself.",
+        example:
+          "The team identifies that unclear acceptance criteria caused rework in the last Sprint. They agree that the Product Owner will include concrete examples with every backlog item going forward, and add that process change to the next Sprint Backlog.",
+        tip: "Show up to the Retrospective with humility and openness. As a Product Owner, you are part of the team and just as accountable for process breakdowns. If Developers feel the Retro is only about their shortcomings, the event loses psychological safety and stops being useful.",
+      },
+      {
+        name: "Scrum Artifacts",
+        definition:
+          "Scrum Artifacts represent the team's work and value, and are designed to maximize transparency so everyone is working from the same information. There are three artifacts: the Product Backlog, the Sprint Backlog, and the Increment — each paired with a commitment that keeps the team focused and progress measurable.",
+        example:
+          "A new team member joins mid-project. Because the Product Backlog, Sprint Backlog, and Increment are all transparent and up to date, they can quickly understand where the product is headed, what the team is working on now, and what has already been built.",
+        tip: "Think of the three artifacts as your single source of truth at every level — the Product Backlog tells you where you're going long term, the Sprint Backlog tells you what you're doing right now, and the Increment shows you what you've actually built. If any of these are unclear or out of date, transparency breaks down.",
+      },
+      {
+        name: "Product Backlog",
+        definition:
+          "The Product Backlog is a single, ordered, ever-evolving list of everything needed to improve the product, and the only source of work for the Scrum Team. Items are continuously refined over time — broken down into smaller, more precise pieces with clear descriptions and sizing — until they are ready to be pulled into a Sprint. Developers are responsible for sizing the work, while the Product Owner shapes priority.",
+        example:
+          "A vague backlog item like 'improve checkout experience' gets refined over several Sprints into smaller, clearly defined items like 'add Apple Pay as a payment option' with acceptance criteria and a size estimate — making it ready for Sprint Planning.",
+        tip: "Refinement is one of your most important ongoing responsibilities as a Product Owner. Aim to always have at least two Sprints worth of refined, ready items at the top of your backlog so Sprint Planning runs smoothly.",
+      },
+      {
+        name: "Product Goal",
+        definition:
+          "The Product Goal is the long-term objective that gives the Scrum Team a clear target to plan and work toward, living at the top of the Product Backlog. Everything else in the backlog exists to define what needs to be built to achieve it. A team works toward one Product Goal at a time and must either fulfill it or consciously abandon it before moving on to the next.",
+        example:
+          "A Product Goal might be 'enable small businesses to process payments fully online by Q3.' Every item in the backlog — from onboarding flows to payment integrations — ladders up to that goal.",
+        tip: "If your team can't articulate the Product Goal from memory, it's not clear enough. A strong Product Goal acts as a decision-making filter — when stakeholders push for new features, you should be able to evaluate every request against it.",
+      },
+      {
+        name: "Sprint Backlog",
+        definition:
+          "The Sprint Backlog is the Developers' own plan for the Sprint, made up of three things: the Sprint Goal (why), the selected Product Backlog items (what), and the delivery plan (how). It is a living, real-time document updated throughout the Sprint as the team learns more, and should be detailed enough that progress can be meaningfully inspected at every Daily Scrum. It belongs to the Developers alone.",
+        example:
+          "Midway through a Sprint, the team discovers a dependency they hadn't anticipated. They update the Sprint Backlog to reflect the new plan, swapping one item for another that still serves the Sprint Goal.",
+        tip: "As a Product Owner, you can see the Sprint Backlog but you don't own it. If you notice the team's plan drifting away from the Sprint Goal mid-Sprint, raise it as a conversation rather than a directive.",
+      },
+      {
+        name: "Sprint Goal",
+        definition:
+          "The Sprint Goal is the single, focused objective the Developers commit to achieving each Sprint, created collaboratively during Sprint Planning and added to the Sprint Backlog. It provides flexibility in how the work gets done while keeping the entire team pointed in the same direction — preventing the Sprint from becoming a disconnected list of unrelated tasks.",
+        example:
+          "The Sprint Goal is 'allow users to track their order in real time.' If a specific tracking feature turns out to be technically complex, the team can swap in a simpler solution that still achieves the goal — without derailing the Sprint.",
+        tip: "Write Sprint Goals as outcomes, not task lists. 'Improve the onboarding flow so new users reach their first key action faster' is a strong Sprint Goal. 'Build onboarding screens 1 through 4' is just a to-do list.",
+      },
+      {
+        name: "Increment",
+        definition:
+          "An Increment is a concrete, usable, and verified piece of value that moves the product closer to the Product Goal — and every new Increment builds on top of all previous ones. Multiple Increments can be created within a single Sprint and can be released before the Sprint Review. Work does not count as part of an Increment unless it meets the Definition of Done.",
+        example:
+          "A team completes three usable features in one Sprint. Two are released to users mid-Sprint because they are ready and valuable. All three are then presented at the Sprint Review as part of the cumulative Increment.",
+        tip: "Don't treat the Sprint Review as a release gate. If something is done and valuable, ship it. Holding back finished work until the end of a Sprint slows down value delivery and contradicts the core purpose of Scrum.",
+      },
+      {
+        name: "Definition of Done",
+        definition:
+          "The Definition of Done is a formal, shared agreement on exactly what 'complete' means for an Increment — covering all quality standards that must be met before work can be released or presented at a Sprint Review. The moment a backlog item meets the Definition of Done, an Increment is born; if it doesn't meet it, the work goes back to the backlog.",
+        example:
+          "A team's Definition of Done includes: code reviewed, unit tests passing, accessibility checked, and deployed to staging. A feature that skips any of these steps is not Done regardless of how complete it feels.",
+        tip: "Push for a Definition of Done that is ambitious but realistic. A weak Definition of Done leads to technical debt and quality issues that will slow the team down later. As a Product Owner, you have a stake in this — low quality Increments erode user trust.",
+      },
+    ],
+  },
 ];

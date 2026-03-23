@@ -3,7 +3,9 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { supabase } from "./lib/supabase";
 import ProtectedRoute    from "./components/ProtectedRoute";
 import BottomTabBar      from "./components/BottomTabBar";
-import { useWindowWidth } from "./hooks/useWindowWidth";
+import ExerciseGate      from "./components/ExerciseGate";
+import { useWindowWidth }    from "./hooks/useWindowWidth";
+import { useAccessControl }  from "./hooks/useAccessControl";
 import { PHASES, EMPTY_FORM } from "./constants/prompts";
 import { generateVision, gradeSubmission } from "./api/claude";
 import { saveSession } from "./api/sessions";
@@ -12,6 +14,7 @@ import { updateStreak } from "./api/streak";
 import Login           from "./pages/Login";
 import Callback        from "./pages/Callback";
 import MFASetup        from "./pages/MFASetup";
+import ResetPassword   from "./pages/ResetPassword";
 import Profile         from "./pages/Profile";
 import Dashboard       from "./pages/Dashboard";
 import SessionDetail   from "./pages/SessionDetail";
@@ -29,9 +32,10 @@ import Results         from "./pages/Results";
 
 function Router() {
   const path = window.location.pathname;
-  if (path === "/login")         return <Login />;
-  if (path === "/auth/callback") return <Callback />;
-  if (path === "/mfa-setup")     return <MFASetup />;
+  if (path === "/login")          return <Login />;
+  if (path === "/auth/callback")  return <Callback />;
+  if (path === "/mfa-setup")      return <MFASetup />;
+  if (path === "/reset-password") return <ResetPassword />;
   if (path === "/app" || path === "/") return <ProtectedRoute><PMGymApp /></ProtectedRoute>;
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0f172a", color: "#94a3b8", fontFamily: "sans-serif" }}>
@@ -100,6 +104,7 @@ function PMGymApp() {
   const { user } = useAuth();
   const width    = useWindowWidth();
   const isMobile = width < 768;
+  const { canExercise, hoursLeft, loading: accessLoading, refetch: refetchAccess } = useAccessControl(user?.id);
 
   // view: "dashboard" | "session" | "practice" | "glossary" | "profile"
   const [view,          setView]          = useState("dashboard");
@@ -168,6 +173,7 @@ function PMGymApp() {
       await saveSession(user.id, vision, form, data);
       await updateStreak(user.id);
       setSaving(false);
+      refetchAccess();
       setResults(data); setPhase(PHASES.RESULTS);
     } catch (e) {
       setError(e.message || "Grading failed. Please try again.");
@@ -265,45 +271,49 @@ function PMGymApp() {
           <>
             <ModeToggle mode={practiceMode} onChange={m => { setPracticeMode(m); handleReset(); }} isMobile={isMobile} />
 
-            {practiceMode === "interview" && <InterviewPrep   onGoToDashboard={() => navigateTo("dashboard")} />}
-            {practiceMode === "quiz"      && <GlossaryQuiz    onGoToDashboard={() => navigateTo("dashboard")} />}
-            {practiceMode === "scenario"  && <ScenarioRuns    onGoToDashboard={() => navigateTo("dashboard")} />}
-            {practiceMode === "focused"   && <FocusedPractice onGoToDashboard={() => navigateTo("dashboard")} />}
+            <ExerciseGate canExercise={canExercise} hoursLeft={hoursLeft} loading={accessLoading}>
 
-            {practiceMode === "full" && (
-              <>
-                {phase === PHASES.HOME && (
-                  <div style={{ textAlign: "center", marginBottom: isMobile ? 28 : 48 }}>
-                    <div style={{ fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", color: "#6366f1", fontWeight: 700, marginBottom: 10 }}>✦ Full PM Plan Exercise</div>
-                    <h1 style={{ fontSize: isMobile ? 28 : 36, fontWeight: 900, margin: "0 0 8px", fontFamily: "'Playfair Display', Georgia, serif", background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                      PM Plan Exercise
-                    </h1>
-                    <p style={{ color: "#64748b", fontSize: 15, margin: 0 }}>Get a product vision and build a complete PM plan for grading.</p>
-                  </div>
-                )}
-                {error && <div style={{ background: "#450a0a", border: "1px solid #ef4444", borderRadius: 8, padding: "12px 16px", marginBottom: 20, color: "#fca5a5", fontSize: 14 }}>⚠️ {error}</div>}
-                {phase === PHASES.HOME    && <Home onStart={handleGenerateVision} loading={loading} />}
-                {phase === PHASES.VISION  && <Vision vision={vision} onStartPlan={() => setPhase(PHASES.FORM)} onRegenerate={handleGenerateVision} loading={loading} />}
-                {phase === PHASES.FORM    && <Form vision={vision} form={form} onChange={handleFormChange} onSubmit={handleGrade} onBack={() => setPhase(PHASES.VISION)} />}
-                {phase === PHASES.GRADING && (
-                  <div style={{ background: "rgba(30,41,59,0.8)", borderRadius: 16, padding: isMobile ? 40 : 60, border: "1px solid #334155", textAlign: "center" }}>
-                    <div style={{ fontSize: 40, marginBottom: 16 }}>⏳</div>
-                    <h2 style={{ margin: "0 0 8px", fontSize: 20 }}>Grading your PM plan...</h2>
-                    <p style={{ color: "#64748b", margin: 0 }}>{saving ? "Saving your results..." : "AI is reviewing each section carefully."}</p>
-                  </div>
-                )}
-                {phase === PHASES.RESULTS && results && (
-                  <>
-                    <Results vision={vision} results={results} onRetry={handleReset} onEdit={() => setPhase(PHASES.FORM)} />
-                    <div style={{ marginTop: 16, textAlign: "center" }}>
-                      <button onClick={() => navigateTo("dashboard")} style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 14, fontFamily: "inherit" }}>
-                        View on Dashboard →
-                      </button>
+              {practiceMode === "interview" && <InterviewPrep   onGoToDashboard={() => navigateTo("dashboard")} onComplete={refetchAccess} />}
+              {practiceMode === "quiz"      && <GlossaryQuiz    onGoToDashboard={() => navigateTo("dashboard")} onComplete={refetchAccess} />}
+              {practiceMode === "scenario"  && <ScenarioRuns    onGoToDashboard={() => navigateTo("dashboard")} onComplete={refetchAccess} />}
+              {practiceMode === "focused"   && <FocusedPractice onGoToDashboard={() => navigateTo("dashboard")} onComplete={refetchAccess} />}
+
+              {practiceMode === "full" && (
+                <>
+                  {phase === PHASES.HOME && (
+                    <div style={{ textAlign: "center", marginBottom: isMobile ? 28 : 48 }}>
+                      <div style={{ fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", color: "#6366f1", fontWeight: 700, marginBottom: 10 }}>✦ Full PM Plan Exercise</div>
+                      <h1 style={{ fontSize: isMobile ? 28 : 36, fontWeight: 900, margin: "0 0 8px", fontFamily: "'Playfair Display', Georgia, serif", background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                        PM Plan Exercise
+                      </h1>
+                      <p style={{ color: "#64748b", fontSize: 15, margin: 0 }}>Get a product vision and build a complete PM plan for grading.</p>
                     </div>
-                  </>
-                )}
-              </>
-            )}
+                  )}
+                  {error && <div style={{ background: "#450a0a", border: "1px solid #ef4444", borderRadius: 8, padding: "12px 16px", marginBottom: 20, color: "#fca5a5", fontSize: 14 }}>⚠️ {error}</div>}
+                  {phase === PHASES.HOME    && <Home onStart={handleGenerateVision} loading={loading} />}
+                  {phase === PHASES.VISION  && <Vision vision={vision} onStartPlan={() => setPhase(PHASES.FORM)} onRegenerate={handleGenerateVision} loading={loading} />}
+                  {phase === PHASES.FORM    && <Form vision={vision} form={form} onChange={handleFormChange} onSubmit={handleGrade} onBack={() => setPhase(PHASES.VISION)} />}
+                  {phase === PHASES.GRADING && (
+                    <div style={{ background: "rgba(30,41,59,0.8)", borderRadius: 16, padding: isMobile ? 40 : 60, border: "1px solid #334155", textAlign: "center" }}>
+                      <div style={{ fontSize: 40, marginBottom: 16 }}>⏳</div>
+                      <h2 style={{ margin: "0 0 8px", fontSize: 20 }}>Grading your PM plan...</h2>
+                      <p style={{ color: "#64748b", margin: 0 }}>{saving ? "Saving your results..." : "AI is reviewing each section carefully."}</p>
+                    </div>
+                  )}
+                  {phase === PHASES.RESULTS && results && (
+                    <>
+                      <Results vision={vision} results={results} onRetry={handleReset} onEdit={() => setPhase(PHASES.FORM)} />
+                      <div style={{ marginTop: 16, textAlign: "center" }}>
+                        <button onClick={() => navigateTo("dashboard")} style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 14, fontFamily: "inherit" }}>
+                          View on Dashboard →
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+
+            </ExerciseGate>
           </>
         )}
       </div>

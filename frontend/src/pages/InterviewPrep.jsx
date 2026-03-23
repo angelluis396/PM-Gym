@@ -298,7 +298,7 @@ function InterviewResults({ gradeData, question, answer, type, onRetry, onNewQue
 
 // ─── Main InterviewPrep page ──────────────────────────────────────────────────
 
-export default function InterviewPrep({ onGoToDashboard }) {
+export default function InterviewPrep({ onGoToDashboard, onComplete }) {
   const { user }  = useAuth();
   const width     = useWindowWidth();
   const isMobile  = width < 768;
@@ -362,6 +362,7 @@ export default function InterviewPrep({ onGoToDashboard }) {
       const data   = await gradeInterviewAnswer(prompt);
       await saveInterviewSession(user.id, typeKey, companyKey, question, answerMode, finalAnswer, data);
       await updateStreak(user.id);
+      onComplete?.();
       setGradeData(data); setPhase(PHASES.RESULTS);
     } catch (e) {
       setError("Grading failed. Please try again.");

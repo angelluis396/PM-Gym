@@ -163,7 +163,7 @@ function QuizResults({ result, onRetry, onNewQuiz, onDashboard, isMobile }) {
   );
 }
 
-export default function GlossaryQuiz({ onGoToDashboard }) {
+export default function GlossaryQuiz({ onGoToDashboard, onComplete }) {
   const { user } = useAuth();
   const width    = useWindowWidth();
   const isMobile = width < 768;
@@ -198,6 +198,7 @@ export default function GlossaryQuiz({ onGoToDashboard }) {
     try {
       await saveQuizSession(user.id, categoryKey, questionCount, gradeResult.score, gradeResult.letterGrade, gradeResult.graded);
       await updateStreak(user.id);
+      onComplete?.();
     } catch (e) {}
   }
 

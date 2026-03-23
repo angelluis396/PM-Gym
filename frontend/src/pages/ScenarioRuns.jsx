@@ -76,7 +76,7 @@ function ScenarioResults({ results, category, scenario, challenge, answer, onRet
   );
 }
 
-export default function ScenarioRuns({ onGoToDashboard }) {
+export default function ScenarioRuns({ onGoToDashboard, onComplete }) {
   const { user } = useAuth();
   const width    = useWindowWidth();
   const isMobile = width < 768;
@@ -104,6 +104,7 @@ export default function ScenarioRuns({ onGoToDashboard }) {
       const data = await gradeScenario(buildScenarioGradingPrompt(category, scenario, challenge, answer));
       await saveScenarioSession(user.id, category.key, scenario, challenge, answer, data);
       await updateStreak(user.id);
+      onComplete?.();
       setResults(data); setPhase(PHASES.RESULTS);
     } catch (e) { setError("Grading failed."); setPhase(PHASES.ANSWER); }
   }
