@@ -185,7 +185,7 @@ export const GLOSSARY = [
   },
   {
     key:   "scrum",
-    label: "Scrum",
+    label: "Agile Scrum",
     emoji: "🔄",
     terms: [
       {
