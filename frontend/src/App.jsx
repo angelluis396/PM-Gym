@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { supabase } from "./lib/supabase";
 import ProtectedRoute    from "./components/ProtectedRoute";
 import BottomTabBar      from "./components/BottomTabBar";
+import BetaBanner        from "./components/BetaBanner";
 import ExerciseGate      from "./components/ExerciseGate";
 import { useWindowWidth }    from "./hooks/useWindowWidth";
 import { useAccessControl }  from "./hooks/useAccessControl";
@@ -317,6 +318,9 @@ function PMGymApp() {
           </>
         )}
       </div>
+
+      {/* ── Beta banner — shows once on first login ── */}
+      <BetaBanner />
 
       {/* ── Bottom tab bar (mobile only) ── */}
       {isMobile && (
