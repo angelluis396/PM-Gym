@@ -14,6 +14,11 @@ function QuizSetup({ onStart, isMobile }) {
   const [questionCount, setQuestionCount] = useState(5);
   const selectedCat = QUIZ_CATEGORIES.find(c => c.key === categoryKey);
 
+  function startLabel() {
+    if (questionCount === "all") return `${selectedCat?.emoji} Start Full Quiz →`;
+    return `${selectedCat?.emoji} Start ${questionCount}-Question Quiz →`;
+  }
+
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
@@ -21,6 +26,7 @@ function QuizSetup({ onStart, isMobile }) {
         <p style={{ color: colors.textMuted, margin: 0, fontSize: 14 }}>Test your knowledge of PM terminology.</p>
       </div>
       <div style={sharedStyles.card}>
+
         {/* Category picker */}
         <div style={{ marginBottom: 24 }}>
           <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: colors.slateLight, marginBottom: 10, letterSpacing: "0.05em", textTransform: "uppercase" }}>Category</label>
@@ -40,11 +46,14 @@ function QuizSetup({ onStart, isMobile }) {
         <div style={{ marginBottom: 28 }}>
           <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: colors.slateLight, marginBottom: 10, letterSpacing: "0.05em", textTransform: "uppercase" }}>Questions</label>
           <div style={{ display: "flex", gap: 10 }}>
-            {[5, 10].map(n => {
+            {[5, 10, "all"].map(n => {
               const active = questionCount === n;
               return (
-                <button key={n} onClick={() => setQuestionCount(n)} style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1px solid ${active ? colors.indigo : colors.border}`, background: active ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "rgba(30,41,59,0.6)", color: active ? "white" : colors.slate, fontWeight: 800, fontSize: 18, cursor: "pointer", fontFamily: "'Playfair Display', serif", transition: "all 0.15s", boxShadow: active ? "0 2px 12px rgba(99,102,241,0.4)" : "none" }}>
-                  {n}<div style={{ fontSize: 11, fontWeight: 600, marginTop: 2, fontFamily: "'Inter', sans-serif" }}>questions</div>
+                <button key={n} onClick={() => setQuestionCount(n)} style={{ flex: 1, padding: "12px 8px", borderRadius: 10, border: `1px solid ${active ? colors.indigo : colors.border}`, background: active ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "rgba(30,41,59,0.6)", color: active ? "white" : colors.slate, fontWeight: 800, fontSize: n === "all" ? 14 : 18, cursor: "pointer", fontFamily: n === "all" ? "'Inter', sans-serif" : "'Playfair Display', serif", transition: "all 0.15s", boxShadow: active ? "0 2px 12px rgba(99,102,241,0.4)" : "none" }}>
+                  {n === "all" ? "All" : n}
+                  <div style={{ fontSize: 11, fontWeight: 600, marginTop: 2, fontFamily: "'Inter', sans-serif" }}>
+                    {n === "all" ? "terms" : "questions"}
+                  </div>
                 </button>
               );
             })}
@@ -52,7 +61,7 @@ function QuizSetup({ onStart, isMobile }) {
         </div>
 
         <button onClick={() => onStart(categoryKey, questionCount)} style={{ ...sharedStyles.btn, ...sharedStyles.btnPrimary, width: "100%", justifyContent: "center", fontSize: 15 }}>
-          {selectedCat?.emoji} Start {questionCount}-Question Quiz →
+          {startLabel()}
         </button>
       </div>
     </div>
@@ -195,8 +204,10 @@ export default function GlossaryQuiz({ onGoToDashboard, onComplete }) {
   async function finishQuiz(finalQuestions) {
     const gradeResult = gradeQuiz(finalQuestions);
     setResult(gradeResult); setPhase(PHASES.RESULTS);
+    // Store the actual number of questions played (in case questionCount is "all")
+    const actualCount = finalQuestions.length;
     try {
-      await saveQuizSession(user.id, categoryKey, questionCount, gradeResult.score, gradeResult.letterGrade, gradeResult.graded);
+      await saveQuizSession(user.id, categoryKey, actualCount, gradeResult.score, gradeResult.letterGrade, gradeResult.graded);
       await updateStreak(user.id);
       onComplete?.();
     } catch (e) {}

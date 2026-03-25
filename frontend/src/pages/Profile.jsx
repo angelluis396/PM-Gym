@@ -315,6 +315,13 @@ export default function Profile({ onBack }) {
           </button>
         </div>
       </div>
+
+      {/* Version */}
+      <div style={{ textAlign: "center", padding: "20px 0 8px" }}>
+        <span style={{ fontSize: 12, color: colors.textMuted, letterSpacing: "0.05em" }}>
+          PM Gym — Version 1.3.7
+        </span>
+      </div>
     </div>
   );
 }

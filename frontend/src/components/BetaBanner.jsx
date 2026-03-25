@@ -57,7 +57,7 @@ export default function BetaBanner() {
             Welcome to PM Gym — currently in beta
           </div>
           <div style={{ fontSize: 13, color: colors.slate, lineHeight: 1.6 }}>
-            Free accounts can complete <strong style={{ color: "#a5b4fc" }}>1 AI exercise every 72 hours</strong>. In the meantime you can browse the full Glossary and review your past session performance anytime.
+            Free accounts can complete <strong style={{ color: "#a5b4fc" }}>Free accounts can complete 1 AI exercise every 72 hours.</strong>. The Glossary Quiz and Glossary are always free.
           </div>
         </div>
 

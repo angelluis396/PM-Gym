@@ -6,10 +6,13 @@ export const ALL_TERMS = GLOSSARY.flatMap((cat) =>
   cat.terms.map((term) => ({ ...term, category: cat.key, categoryLabel: cat.label }))
 );
 
-// ─── Get terms for a given category key (or all) ──────────────────────────────
+// ─── Get terms for a given category key ──────────────────────────────────────
+// "all"    → every term across all categories
+// "random" → same pool, but question count is always 5 or 10
+// anything else → just that category's terms
 
 export function getTermsForCategory(categoryKey) {
-  if (categoryKey === "all") return ALL_TERMS;
+  if (categoryKey === "all" || categoryKey === "random") return ALL_TERMS;
   return ALL_TERMS.filter((t) => t.category === categoryKey);
 }
 
@@ -25,35 +28,35 @@ function shuffle(arr) {
 }
 
 // ─── Generate multiple choice options ────────────────────────────────────────
-// Takes the correct term and picks 3 wrong definitions from the pool
 
 function generateChoices(correctTerm, allTerms) {
   const wrong = shuffle(
     allTerms.filter((t) => t.name !== correctTerm.name)
   ).slice(0, 3);
 
-  const choices = shuffle([
+  return shuffle([
     { text: correctTerm.definition, correct: true },
     ...wrong.map((t) => ({ text: t.definition, correct: false })),
   ]);
-
-  return choices;
 }
 
 // ─── Build a quiz ─────────────────────────────────────────────────────────────
-// Returns an array of question objects ready to render
+// questionCount: 5 | 10 | "all"
+// "all" uses every term in the pool (no cap)
 
 export function buildQuiz(categoryKey, questionCount) {
-  const pool    = getTermsForCategory(categoryKey);
-  const picked  = shuffle(pool).slice(0, questionCount);
+  const pool   = getTermsForCategory(categoryKey);
+  const picked = questionCount === "all"
+    ? shuffle(pool)
+    : shuffle(pool).slice(0, questionCount);
 
   return picked.map((term) => ({
-    termName:     term.name,
-    category:     term.category,
+    termName:      term.name,
+    category:      term.category,
     categoryLabel: term.categoryLabel,
-    choices:      generateChoices(term, ALL_TERMS),
-    userAnswer:   null,   // filled in as user answers
-    correct:      false,  // filled in after grading
+    choices:       generateChoices(term, ALL_TERMS),
+    userAnswer:    null,
+    correct:       false,
   }));
 }
 
@@ -66,12 +69,10 @@ export function gradeQuiz(questions) {
     return { ...q, correct };
   });
 
-  const numCorrect  = graded.filter((q) => q.correct).length;
-  const total       = graded.length;
-  const pct         = numCorrect / total;
-
-  // Map to 50-100 scale to match the rest of the app
-  const score = Math.round(50 + pct * 50);
+  const numCorrect = graded.filter((q) => q.correct).length;
+  const total      = graded.length;
+  const pct        = numCorrect / total;
+  const score      = Math.round(50 + pct * 50);
 
   const letterGrade =
     pct >= 0.9 ? "A" :
@@ -85,6 +86,6 @@ export function gradeQuiz(questions) {
 // ─── Category options for the picker ─────────────────────────────────────────
 
 export const QUIZ_CATEGORIES = [
-  { key: "all", label: "All Categories", emoji: "🎲" },
-  ...GLOSSARY.map((cat) => ({ key: cat.key, label: cat.label, emoji: cat.emoji })),
+  { key: "all", label: "All Categories", emoji: "📚", randomOnly: false },
+  ...GLOSSARY.map((cat) => ({ key: cat.key, label: cat.label, emoji: cat.emoji, randomOnly: false })),
 ];

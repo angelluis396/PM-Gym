@@ -272,10 +272,13 @@ function PMGymApp() {
           <>
             <ModeToggle mode={practiceMode} onChange={m => { setPracticeMode(m); handleReset(); }} isMobile={isMobile} />
 
+            {/* Quiz is free — no AI calls, no credits used */}
+            {practiceMode === "quiz" && <GlossaryQuiz onGoToDashboard={() => navigateTo("dashboard")} onComplete={refetchAccess} />}
+
+            {practiceMode !== "quiz" && (
             <ExerciseGate canExercise={canExercise} hoursLeft={hoursLeft} loading={accessLoading}>
 
               {practiceMode === "interview" && <InterviewPrep   onGoToDashboard={() => navigateTo("dashboard")} onComplete={refetchAccess} />}
-              {practiceMode === "quiz"      && <GlossaryQuiz    onGoToDashboard={() => navigateTo("dashboard")} onComplete={refetchAccess} />}
               {practiceMode === "scenario"  && <ScenarioRuns    onGoToDashboard={() => navigateTo("dashboard")} onComplete={refetchAccess} />}
               {practiceMode === "focused"   && <FocusedPractice onGoToDashboard={() => navigateTo("dashboard")} onComplete={refetchAccess} />}
 
@@ -315,6 +318,7 @@ function PMGymApp() {
               )}
 
             </ExerciseGate>
+            )}
           </>
         )}
       </div>
